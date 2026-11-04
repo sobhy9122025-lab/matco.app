@@ -252,8 +252,7 @@
         <div class="big">🚧</div>
         <h2>${esc(title)}</h2>
         <p class="muted">${esc(text)}</p>
-        <p>الصفحة دي جاية في المرحلة الجاية. لحد ما تجهز، استخدم الموقع القديم.</p>
-        <a class="btn btn-primary" href="${esc(CFG.OLD_SITE || "#")}" target="_blank" rel="noopener">فتح الموقع القديم ↗</a>
+        <p>الصفحة دي جاية في المرحلة الجاية إن شاء الله.</p>
       </div>`;
   }
 
