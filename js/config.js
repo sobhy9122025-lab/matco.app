@@ -13,6 +13,12 @@ window.APP_CONFIG = {
   // إذا كتب المستخدم اسمه دون @ (مثل a.salam) يُحوَّل تلقائيًا إلى a.salam@matco.app
   LOGIN_DOMAIN: "matco.app",
 
+  // التوقيع الذي يظهر أسفل الشاشات وفي نهاية التقارير المطبوعة
+  SIGNATURE: {
+    name: "Mohamed Sobhy",
+    title: "Head of Budgeting & Financial Analysis",
+  },
+
   // رابط النظام القديم
   OLD_SITE: "https://matco-attendance.streamlit.app/",
 };

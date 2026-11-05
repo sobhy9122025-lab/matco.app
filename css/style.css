@@ -409,3 +409,15 @@ td.actions > .btn { margin: 2px; }
 @media (max-width: 1000px) { .one-emp { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .one-emp { grid-template-columns: 1fr; } }
 .tpl-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+
+/* =========================================================
+   التوقيع الشخصي
+   ========================================================= */
+.sig-card { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px 4px 5px; border-radius: 10px; font-family: "Segoe UI", system-ui, Arial, sans-serif;
+  background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.sig-emblem { flex-shrink: 0; border-radius: 7px; box-shadow: 0 2px 6px rgba(185, 28, 28, .22); }
+.sig-text b { display: block; font-size: 11.5px; line-height: 1.2; letter-spacing: .2px; color: var(--text); }
+.sig-text span { display: block; font-size: 9.5px; color: var(--muted); line-height: 1.3; }
+.app-footer { display: flex; justify-content: center; padding: 6px 20px 18px; }
+.login-sig { display: flex; justify-content: center; margin-top: 6px; }
+.login-sig .sig-card { box-shadow: none; background: var(--soft); }

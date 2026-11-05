@@ -627,7 +627,7 @@
       ${table([T.day, T.date, T.type], r.leaveDays.map((l) => [T.days[dow(l.date)], fmtD(l.date), esc(T.typeName(l.type))]))}
 
       <div class="signs"><div>${T.empSign}<span></span></div><div>${T.mgrSign}<span></span></div></div>
-      <footer>${T.printed}: ${fmtD(new Date().toISOString().slice(0, 10))}</footer>
+      <footer><span>${T.printed}: ${fmtD(new Date().toISOString().slice(0, 10))}</span>${window.SIGNATURE ? window.SIGNATURE.printHTML() : ""}</footer>
     </section>`;
   }
 
@@ -678,7 +678,8 @@
       .signs { display: flex; gap: 30px; margin-top: 18px; break-inside: avoid; }
       .signs div { flex: 1; font-weight: 700; color: #334155; }
       .signs span { display: block; border-bottom: 1px solid #94a3b8; height: 24px; }
-      footer { margin-top: 10px; color: #94a3b8; font-size: 9px; text-align: center; }
+      footer { margin-top: 10px; color: #94a3b8; font-size: 9px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+      ${window.SIGNATURE ? window.SIGNATURE.PRINT_CSS : ""}
       @media print {
         html, body { background: #fff; }
         .toolbar { display: none; }

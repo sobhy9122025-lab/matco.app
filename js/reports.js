@@ -284,7 +284,7 @@
     // ---------- أدوات ----------
     function sheet(title, sub, inner) {
       return `<section class="report" dir="rtl"><header><div><h1>${title}</h1><div class="sub">${sub}</div></div><img class="logo" src="${window.PRINT.logoUrl()}" alt=""></header>
-        ${inner}<footer>تاريخ الطباعة: ${fmtD(new Date().toISOString().slice(0, 10))}</footer></section>`;
+        ${inner}<footer><span>تاريخ الطباعة: ${fmtD(new Date().toISOString().slice(0, 10))}</span>${window.SIGNATURE ? window.SIGNATURE.printHTML() : ""}</footer></section>`;
     }
     function xlsx(rows, sheetName, file) {
       if (!rows.length) return A.toast("لا توجد بيانات للتصدير", "bad");
