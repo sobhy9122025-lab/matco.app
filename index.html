@@ -8,7 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <script>
+    // رقم الإصدار — بيزيد مع كل تحديث (ولازم يطابق version.json)
+    window.APP_VERSION = "7";
+    try { if (localStorage.getItem("theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch (e) {}
+    document.write('<link rel="stylesheet" href="css/style.css?v=' + window.APP_VERSION + '">');
+  </script>
 </head>
 <body>
 
@@ -37,6 +42,7 @@
         <div>
           <div class="brand-title">نظام الحضور والإجازات</div>
           <div class="brand-sub" id="conn-status">جاري الاتصال...</div>
+          <div class="app-version" id="app-version"></div>
         </div>
       </div>
       <nav class="mainnav" id="mainnav">
@@ -48,6 +54,7 @@
       </nav>
       <div class="userbox">
         <span class="user-chip" id="user-name">—</span>
+        <button class="btn btn-ghost btn-sm theme-btn" id="theme-btn" type="button">🌙</button>
         <button class="btn btn-ghost btn-sm" id="refresh-btn" title="تحديث البيانات">🔄</button>
         <button class="btn btn-ghost btn-sm" id="logout-btn">خروج</button>
       </div>
@@ -72,10 +79,11 @@
 
   <script src="lib/supabase.js"></script>
   <script src="lib/xlsx.full.min.js"></script>
-  <script src="js/config.js?v=6"></script>
-  <script src="js/rules.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
-  <script src="js/attendance.js?v=6"></script>
-  <script src="js/settings.js?v=6"></script>
+  <script>document.write('<script src="js/config.js?v=' + window.APP_VERSION + '"><\/script>');</script>
+  <script>document.write('<script src="js/rules.js?v=' + window.APP_VERSION + '"><\/script>');</script>
+  <script>document.write('<script src="js/app.js?v=' + window.APP_VERSION + '"><\/script>');</script>
+  <script>document.write('<script src="js/attendance.js?v=' + window.APP_VERSION + '"><\/script>');</script>
+  <script>document.write('<script src="js/reports.js?v=' + window.APP_VERSION + '"><\/script>');</script>
+  <script>document.write('<script src="js/settings.js?v=' + window.APP_VERSION + '"><\/script>');</script>
 </body>
 </html>

@@ -420,13 +420,14 @@
           ${r.excLate + r.excEarly ? `<div class="net-row-x"><span class="tag ok-tag">✅ منها بعذر مسجّل: ${minToHM(r.excLate + r.excEarly)}</span>
             <span class="tag bad-tag">🚫 بدون عذر: ${minToHM(deficit - r.excLate - r.excEarly)}</span></div>` : ""}</div>`;
 
+    const blank = (m, cls) => (m ? `<span class="${cls}">${minToHM(m)}</span>` : "");
     const detailRows = r.details.map((d) => `<tr>
-        <td>${DAY_AR[dow(d.date)]}</td><td class="num">${fmtD(d.date)}</td>
-        <td class="num">${secToHM(d.first)}</td><td class="num">${secToHM(d.last)}</td>
+        <td><b>${DAY_AR[dow(d.date)]}</b> <span class="muted num">${fmtD(d.date)}</span></td>
+        <td class="num"><span dir="ltr">${secToHM(d.first) || "—"} – ${secToHM(d.last) || "—"}</span></td>
         ${r.daily ? `<td class="num">${minToHM(d.worked)}</td>` : ""}
-        <td class="num ${d.late ? "txt-bad" : ""}">${minToHM(d.late)}</td><td class="num ${d.early ? "txt-bad" : ""}">${minToHM(d.early)}</td>
-        ${r.daily ? `<td class="num ${d.over ? "txt-ok" : ""}">${minToHM(d.over)}</td>` : ""}
-        <td>${d.excuse ? `<span class="tag">${esc(d.excuse)}</span>` : "—"}</td></tr>`).join("");
+        <td class="num">${blank(d.late, "txt-bad")}</td><td class="num">${blank(d.early, "txt-bad")}</td>
+        ${r.daily ? `<td class="num">${blank(d.over, "txt-ok")}</td>` : ""}
+        <td>${d.excuse ? `<span class="tag ok-tag" title="${esc(d.excuse)}">✓ ${esc(d.excuseType)}</span>` : ""}</td></tr>`).join("");
 
     return `
       <div id="emp-view" class="stack-16">
@@ -471,8 +472,8 @@
             <button class="tab" data-tab="exc">📝 التسجيلات والأعذار (${r.excuses.length})</button>
           </div>
           <div data-pane="details">
-            ${r.details.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr>
-              <th>اليوم</th><th>التاريخ</th><th>أول بصمة</th><th>آخر بصمة</th>${r.daily ? "<th>ساعات العمل</th>" : ""}
+            ${r.details.length ? `<div class="table-wrap"><table class="grid view-grid compact-grid"><thead><tr>
+              <th>اليوم</th><th>دخول – خروج</th>${r.daily ? "<th>ساعات العمل</th>" : ""}
               <th>التأخير</th><th>الخروج المبكر</th>${r.daily ? "<th>الإضافي</th>" : ""}<th>العذر</th>
             </tr></thead><tbody>${detailRows}</tbody></table></div>` : `<div class="ok-box">لا يوجد تأخير أو خروج مبكر ✅</div>`}
           </div>
@@ -626,9 +627,15 @@
   }
 
   function printReports(list, lang) {
+    const title = `${list.length === 1 ? (list[0].name || list[0].id) : "تقارير البصمة"} — ${list[0].pTo}`;
+    openPrintWindow(list.map((r) => reportHTML(r, lang)).join(""), lang, title);
+  }
+
+  // صفحة طباعة عامة (بتستخدمها كل التقارير) — مقاس A4 والتصميم موحّد
+  function openPrintWindow(bodyHTML, lang, title, landscape = false) {
     const T = TX[lang];
     const css = `
-      @page { size: A4 portrait; margin: 10mm; }
+      @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 10mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       html, body { margin: 0; padding: 0; background: #eef1f6; }
       body { font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; color: #0f172a; font-size: 10.5px; line-height: 1.45; }
@@ -636,7 +643,7 @@
       .toolbar button { font: inherit; font-weight: 700; border: 0; border-radius: 8px; padding: 8px 18px; cursor: pointer; background: #fff; color: #1e3a8a; }
       .toolbar span { opacity: .85; font-size: 12px; }
       /* الورقة: عرض A4 الصافي (210 − 20 هامش) */
-      .report { width: 190mm; margin: 12px auto; background: #fff; padding: 8mm; box-shadow: 0 2px 10px rgba(0,0,0,.08); page-break-after: always; break-after: page; }
+      .report { width: ${landscape ? "277mm" : "190mm"}; margin: 12px auto; background: #fff; padding: 8mm; box-shadow: 0 2px 10px rgba(0,0,0,.08); page-break-after: always; break-after: page; }
       .report:last-child { page-break-after: auto; break-after: auto; }
       header { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 3px solid #1e3a8a; padding-bottom: 6px; margin-bottom: 8px; }
       header .logo { height: 44px; width: auto; max-width: 45%; object-fit: contain; }
@@ -672,7 +679,6 @@
         .toolbar { display: none; }
         .report { width: auto; margin: 0; padding: 0; box-shadow: none; }
       }`;
-    const title = `${list.length === 1 ? (list[0].name || list[0].id) : "تقارير البصمة"} — ${list[0].pTo}`;
     const html = `<!doctype html><html lang="${lang}" dir="${T.dir}"><head><meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1"><title>${window.APP.esc(title)}</title>
       <base href="${new URL(".", location.href).href}">
@@ -680,7 +686,7 @@
       <body>
         <div class="toolbar"><button onclick="window.print()">🖨️ ${lang === "ar" ? "طباعة / حفظ PDF" : "Print / Save as PDF"}</button>
           <span>${lang === "ar" ? "من نافذة الطباعة اختر «Save as PDF» ومقاس الورق A4" : "In the print dialog choose “Save as PDF” and paper size A4"}</span></div>
-        ${list.map((r) => reportHTML(r, lang)).join("")}
+        ${bodyHTML}
         <script>
           (function () {
             var imgs = Array.prototype.slice.call(document.images);
@@ -700,5 +706,6 @@
   window.PAGES = window.PAGES || {};
   window.PAGES.attendance = render;
   // للاختبار
+  window.PRINT = { openPrintWindow, logoUrl: () => LOGO_URL(), minToHM, fmtD, dow, DAY_AR };
   window.ATT_ENGINE = { readAttendanceFile, computeEmployee, processFile, reportHTML, parsePunch, parseDateCell };
 })();

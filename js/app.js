@@ -8,7 +8,7 @@
   const CFG = window.APP_CONFIG || {};
 
   // ---------------- ثوابت ----------------
-  const LEAVE_TYPES = ["سنوية", "مرضية", "بدون راتب", "اضطرارية", "رسمية", "أخرى"];
+  const LEAVE_TYPES = ["مرضية", "سنوية", "اضطرارية", "بدون راتب", "رسمية", "أخرى"];
   const LEAVE_STATUSES = ["معتمدة", "قيد المراجعة", "مرفوضة"];
   const ABSENCE_TYPES = ["غياب بإذن", "غياب بدون إذن", "تأخير بعذر", "خروج مبكر بإذن", "أخرى"];
   const ABSENCE_REASONS = [
@@ -811,10 +811,44 @@
     XLSX.writeFile(wb, `${kind}_${ui.from}_${ui.to}.xlsx`);
   }
 
+  // ---------------- الثيم (فاتح / غامق) ----------------
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem("theme", t); } catch (_) { /* التخزين مقفول */ }
+    $("#theme-btn").textContent = t === "dark" ? "☀️" : "🌙";
+    $("#theme-btn").title = t === "dark" ? "الوضع الفاتح" : "الوضع الغامق";
+  }
+  setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  $("#theme-btn").addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+
+  // ---------------- التنبيه بوجود نسخة جديدة ----------------
+  const APP_VERSION = window.APP_VERSION || "0";
+  $("#app-version").textContent = "إصدار " + APP_VERSION;
+  async function checkVersion() {
+    try {
+      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      const { version } = await r.json();
+      if (version && String(version) !== String(APP_VERSION) && !$(".update-bar")) {
+        const bar = document.createElement("div");
+        bar.className = "update-bar";
+        bar.innerHTML = `🔔 فيه نسخة جديدة من الموقع <button type="button">تحديث الآن</button>`;
+        bar.querySelector("button").addEventListener("click", () => {
+          if (hasPendingChanges() && !confirm("فيه تعديلات غير محفوظة هتضيع. تحدّث برضه؟")) return;
+          location.replace(location.pathname + "?v=" + encodeURIComponent(version) + location.hash);
+        });
+        document.body.appendChild(bar);
+      }
+    } catch (_) { /* مفيش نت — نجرب بعدين */ }
+  }
+  checkVersion();
+  setInterval(checkVersion, 5 * 60 * 1000);
+
   // واجهة مشتركة لباقي الصفحات (تقرير البصمة / التقارير)
   window.APP = {
     state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS,
     async reloadEmployees() { await loadEmployees(); showConnStatus(); },
+    employeeCombo, hasPendingChanges,
     resetRecordPages() { for (const k of Object.keys(state.ui)) state.ui[k].rows = null; },
   };
 
