@@ -119,10 +119,37 @@
       return;
     }
     root.innerHTML = `
-      <div class="page-head"><div><h2>⚙️ الإعدادات</h2><p>رفع وتحديث بيانات الموظفين، واستيراد الإجازات والغياب السابقة — للمدير فقط.</p></div></div>
+      <div class="page-head"><div><h2>⚙️ الإعدادات</h2><p>إعدادات الدوام، وإدارة المستخدمين وكلمات المرور، ورفع بيانات الموظفين والإجازات السابقة — للمدير فقط.</p></div></div>
 
       <div class="kpis">
-        <div class="kpi"><div class="v num">${A.state.employees.size.toLocaleString("en-US")}</div><div class="l">الموظفين في قاعدة البيانات</div></div>
+        <div class="kpi"><div class="v num">${A.state.employees.size.toLocaleString("en-US")}</div><div class="l">الموظفون في قاعدة البيانات</div></div>
+      </div>
+
+      <div class="settings-two">
+        <div class="card">
+          <div class="card-title">⏱ إعدادات الدوام</div>
+          <p class="muted" style="margin-top:-6px">تُطبَّق على تقرير البصمة لجميع المستخدمين. أوقات رمضان والأعياد تُحدَّد في ملف <b>js/rules.js</b>.</p>
+          <form id="shift-form" class="shift-form">
+            <label>🕗 بداية الدوام <input type="time" id="set-start" value="${esc(A.settings().start)}" required></label>
+            <label>⏱ دقائق السماح <input type="number" id="set-grace" min="0" max="120" value="${esc(A.settings().grace)}" required></label>
+            <button class="btn btn-primary" type="submit" id="shift-save">💾 حفظ</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-title">➕ إضافة مستخدم</div>
+          <form id="user-form" class="user-form" autocomplete="off">
+            <label>اسم المستخدم <input id="u-name" required placeholder="مثال: ahmed أو ahmed@matco.app" autocomplete="off"></label>
+            <label>كلمة المرور <input id="u-pass" type="text" required minlength="6" placeholder="6 أحرف على الأقل" autocomplete="new-password"></label>
+            <label class="check"><input type="checkbox" id="u-admin"> صلاحية مدير</label>
+            <button class="btn btn-primary" type="submit" id="u-save">➕ إضافة</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">👤 المستخدمون</div>
+        <div id="users-box"><span class="muted">جاري التحميل...</span></div>
       </div>
 
       <div class="card">
@@ -146,6 +173,87 @@
           <div class="settings-side" id="hist-preview"><span class="muted">لم يتم اختيار ملف بعد.</span></div>
         </div>
       </div>`;
+
+    // ---------- إعدادات الدوام ----------
+    $("#shift-form").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const start = $("#set-start").value, grace = +$("#set-grace").value;
+      if (!start || !(grace >= 0 && grace <= 120)) return A.toast("أدخل وقتًا صحيحًا ودقائق سماح بين 0 و 120", "bad");
+      $("#shift-save").disabled = true;
+      try {
+        await A.DB.saveSettings({ start_time: start, grace_minutes: grace }, A.userName());
+        A.state.settings = { ...A.state.settings, start_time: start, grace_minutes: String(grace) };
+        A.toast("✅ تم حفظ إعدادات الدوام", "ok");
+      } catch (e) { A.toast("تعذّر الحفظ: " + A.errMsg(e), "bad"); }
+      $("#shift-save").disabled = false;
+    });
+
+    // ---------- المستخدمون ----------
+    const domain = (window.APP_CONFIG || {}).LOGIN_DOMAIN || "matco.app";
+    const short = (em) => (String(em).endsWith("@" + domain) ? String(em).slice(0, -domain.length - 1) : em);
+    const fmtDT = (v) => (v ? new Date(v).toLocaleString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
+
+    async function loadUsers() {
+      const box = $("#users-box");
+      try {
+        const users = await A.DB.rpc("admin_list_users");
+        const me = (A.state.user?.email || "").toLowerCase();
+        box.innerHTML = `<div class="table-wrap"><table class="grid view-grid"><thead><tr>
+            <th>اسم المستخدم</th><th>الصلاحية</th><th>تاريخ الإنشاء</th><th>آخر دخول</th><th>الإجراءات</th></tr></thead><tbody>
+          ${users.map((u) => { const isMe = String(u.email).toLowerCase() === me; return `<tr data-email="${esc(u.email)}">
+            <td class="nm"><b>${esc(short(u.email))}</b>${isMe ? ' <span class="tag">أنت</span>' : ""}</td>
+            <td><span class="tag ${u.is_admin ? "warn-tag" : ""}">${u.is_admin ? "مدير" : "مستخدم"}</span></td>
+            <td class="num">${fmtDT(u.created_at)}</td><td class="num">${fmtDT(u.last_sign_in_at)}</td>
+            <td class="actions">
+              <button class="btn btn-sm" data-act="pass">🔑 كلمة المرور</button>
+              ${isMe ? "" : `<button class="btn btn-sm" data-act="admin" data-v="${u.is_admin ? 0 : 1}">${u.is_admin ? "سحب صلاحية المدير" : "منح صلاحية المدير"}</button>
+              <button class="btn btn-sm btn-danger-ghost" data-act="del">🗑️ حذف</button>`}
+            </td></tr>`; }).join("")}
+          </tbody></table></div>`;
+      } catch (e) {
+        box.innerHTML = `<div class="form-error">تعذّر تحميل المستخدمين: ${esc(A.errMsg(e))}<br><span class="muted">تأكد من تشغيل ملف <b>database/4_users_and_settings.sql</b> في Supabase.</span></div>`;
+      }
+    }
+
+    $("#user-form").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      let name = $("#u-name").value.trim().toLowerCase();
+      const pass = $("#u-pass").value;
+      if (!name) return;
+      if (!name.includes("@")) name = `${name}@${domain}`;
+      if (pass.length < 6) return A.toast("كلمة المرور يجب ألا تقل عن 6 أحرف", "bad");
+      $("#u-save").disabled = true;
+      try {
+        await A.DB.rpc("admin_create_user", { p_email: name, p_password: pass, p_admin: $("#u-admin").checked });
+        A.toast(`✅ تمت إضافة المستخدم ${short(name)}`, "ok");
+        $("#user-form").reset();
+        loadUsers();
+      } catch (e) { A.toast("تعذّرت الإضافة: " + A.errMsg(e), "bad"); }
+      $("#u-save").disabled = false;
+    });
+
+    $("#users-box").addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("[data-act]"); if (!btn) return;
+      const email = btn.closest("tr").dataset.email;
+      try {
+        if (btn.dataset.act === "pass") {
+          const p = prompt(`كلمة المرور الجديدة للمستخدم ${short(email)} (6 أحرف على الأقل):`);
+          if (p == null) return;
+          if (p.length < 6) return A.toast("كلمة المرور يجب ألا تقل عن 6 أحرف", "bad");
+          await A.DB.rpc("admin_set_password", { p_email: email, p_password: p });
+          A.toast("✅ تم تغيير كلمة المرور", "ok");
+        } else if (btn.dataset.act === "admin") {
+          await A.DB.rpc("admin_set_admin", { p_email: email, p_admin: btn.dataset.v === "1" });
+          A.toast("✅ تم تحديث الصلاحية", "ok");
+        } else if (btn.dataset.act === "del") {
+          if (!confirm(`سيتم حذف المستخدم ${short(email)} نهائيًا ولن يتمكن من الدخول. هل أنت متأكد؟`)) return;
+          await A.DB.rpc("admin_delete_user", { p_email: email });
+          A.toast("✅ تم حذف المستخدم", "ok");
+        }
+        loadUsers();
+      } catch (e) { A.toast("تعذّرت العملية: " + A.errMsg(e), "bad"); }
+    });
+    loadUsers();
 
     // ---------- الموظفين ----------
     const empFile = $("#emp-file");

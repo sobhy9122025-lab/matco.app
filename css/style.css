@@ -345,6 +345,61 @@ tr.clickable { cursor: pointer; }
 .kpi.ok .v, .kpi.bad .v, .kpi.warn .v { }
 .two-col > *, .upload-grid > *, .settings-row > * { min-width: 0; }
 /* اسم الموظف في سطر واحد */
-table.grid td.nm, table.grid .c-name { white-space: nowrap; min-width: 220px; }
+table.grid td.nm, table.grid .c-name { white-space: nowrap; }
 table.grid td.nm b { white-space: nowrap; }
 table.sortable td { white-space: nowrap; }
+
+
+/* =========================================================
+   عرض الجداول بدون شريط تمرير أفقي
+   ========================================================= */
+table.grid, table.grid.view-grid, table.grid.compact-grid { min-width: 0 !important; }
+table.grid th { white-space: normal; line-height: 1.3; }
+table.sortable th { white-space: normal; }
+table.grid .c-date { width: 132px; } table.grid .c-type { width: 118px; } table.grid .c-status { width: 112px; }
+table.grid .c-emp { width: 92px; } table.grid .c-id { width: 74px; } table.grid .c-dept { width: 120px; }
+table.grid td input[type="date"] { padding-inline: 4px; }
+.page { max-width: 1600px; }
+
+/* الشاشات الصغيرة: كل صف يتحوّل إلى بطاقة */
+@media (max-width: 980px) {
+  .table-wrap { border: 0; overflow: visible; }
+  table.grid thead { display: none; }
+  table.grid, table.grid tbody, table.grid tr, table.grid td { display: block; width: 100% !important; }
+  table.grid tr { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; padding: 6px 10px; background: var(--card); }
+  table.grid tr.row-new, table.grid tr.row-dirty, table.grid tr.row-deleted { border-color: var(--line-strong); }
+  table.grid td { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 0 !important; padding: 4px 0 !important;
+    white-space: normal !important; text-align: start; min-height: 30px; }
+  table.grid td::before { content: attr(data-label); font-weight: 700; color: var(--muted); font-size: 12px; flex-shrink: 0; }
+  table.grid td[data-label=""]::before { content: none; }
+  table.grid td > input, table.grid td > select { max-width: 62%; border-color: var(--line-strong); background: var(--input); }
+  table.grid tr.empty-row td { justify-content: center; }
+  table.grid tr.empty-row td::before { content: none; }
+}
+
+/* الإعدادات: الدوام والمستخدمون */
+.settings-two { display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; }
+@media (max-width: 900px) { .settings-two { grid-template-columns: 1fr; } }
+.settings-two > * { min-width: 0; }
+.shift-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
+.user-form { display: grid; grid-template-columns: 1.3fr 1fr auto auto; gap: 12px; align-items: end; }
+@media (max-width: 600px) { .shift-form, .user-form { grid-template-columns: 1fr; } }
+label.check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 8px; white-space: nowrap; }
+label.check input { width: auto; }
+td.actions > .btn { margin: 2px; }
+.shift-info { display: flex; flex-direction: column; gap: 6px; background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.shift-info > div { display: flex; justify-content: space-between; gap: 8px; }
+.shift-info b { font-size: 16px; }
+.small-note { font-size: 12px; }
+/* الشاشات المتوسطة (لابتوب صغير) */
+@media (max-width: 1180px) {
+  .rep-layout { grid-template-columns: 1fr; }
+  .rep-side { position: static; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .two-col { grid-template-columns: 1fr; }
+  table.grid .c-dept, table.grid td.c-dept { display: none; }
+  table.grid .c-date { width: 122px; }
+  table.grid td, table.grid th { padding-inline: 5px; }
+}
+@media (max-width: 980px) {
+  .rep-side { display: flex; }
+}

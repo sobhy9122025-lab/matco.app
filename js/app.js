@@ -104,6 +104,16 @@
       all: (table) => fetchAll(table),
       async insert(table, rows) { return check(await sb.from(table).insert(rows).select()); },
       async upsert(table, rows, onConflict) { check(await sb.from(table).upsert(rows, { onConflict })); },
+      async rpc(fn, args) { return check(await sb.rpc(fn, args || {})); },
+      async getSettings() {
+        const { data, error } = await sb.from("app_settings").select("key,value");
+        if (error) return {};
+        return Object.fromEntries((data || []).map((r) => [r.key, r.value]));
+      },
+      async saveSettings(obj, by) {
+        const rows = Object.entries(obj).map(([key, value]) => ({ key, value: String(value), updated_at: new Date().toISOString(), updated_by: by }));
+        check(await sb.from("app_settings").upsert(rows, { onConflict: "key" }));
+      },
       async isAdmin() {
         const { data, error } = await sb.from("app_admins").select("email").limit(1);
         return !error && Array.isArray(data) && data.length > 0;
@@ -133,6 +143,7 @@
   const state = {
     user: null,
     isAdmin: false,
+    settings: {},
     employees: new Map(),   // id -> employee
     empList: [],            // للبحث
     data: { leaves: null, absences: null },
@@ -182,6 +193,7 @@
       await loadEmployees();
       showConnStatus();
       try { state.isAdmin = DB.isAdmin ? await DB.isAdmin() : false; } catch (_) { state.isAdmin = false; }
+      try { state.settings = DB.getSettings ? await DB.getSettings() : {}; } catch (_) { state.settings = {}; }
       $("#nav-settings").hidden = !state.isAdmin;
     } catch (e) {
       $("#conn-status").textContent = "تعذّر الاتصال: " + errMsg(e);
@@ -844,11 +856,32 @@
   checkVersion();
   setInterval(checkVersion, 5 * 60 * 1000);
 
+  // ---------------- عناوين الأعمدة للعرض على الموبايل (كل صف بطاقة) ----------------
+  function labelTables() {
+    document.querySelectorAll("table.grid").forEach((t) => {
+      const heads = [...t.querySelectorAll("thead th")].map((th) => th.textContent.replace(/[▲▼]/g, "").trim());
+      if (!heads.length) return;
+      t.querySelectorAll("tbody tr").forEach((tr) => {
+        [...tr.children].forEach((td, i) => { if (!td.hasAttribute("data-label")) td.setAttribute("data-label", heads[i] || ""); });
+      });
+    });
+  }
+  let labelTimer;
+  new MutationObserver(() => { clearTimeout(labelTimer); labelTimer = setTimeout(labelTables, 30); })
+    .observe(document.body, { childList: true, subtree: true });
+
   // واجهة مشتركة لباقي الصفحات (تقرير البصمة / التقارير)
   window.APP = {
     state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS,
     async reloadEmployees() { await loadEmployees(); showConnStatus(); },
-    employeeCombo, hasPendingChanges,
+    employeeCombo, hasPendingChanges, userName,
+    // إعدادات الدوام (من قاعدة البيانات، وإلا القيم الافتراضية في rules.js)
+    settings() {
+      const R = window.ATT_RULES || {};
+      const st = String(state.settings.start_time || R.DEFAULT_START || "08:00").slice(0, 5);
+      const gr = Number.isFinite(+state.settings.grace_minutes) && state.settings.grace_minutes !== undefined && state.settings.grace_minutes !== "" ? +state.settings.grace_minutes : (R.DEFAULT_GRACE ?? 15);
+      return { start: st, grace: gr };
+    },
     resetRecordPages() { for (const k of Object.keys(state.ui)) state.ui[k].rows = null; },
   };
 

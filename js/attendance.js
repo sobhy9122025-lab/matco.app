@@ -282,8 +282,11 @@
             <div class="muted">Excel — ملف موظف واحد أو كل الموظفين</div>
           </label>
           <div class="upload-side">
-            <label>🕗 بداية الدوام <input type="time" id="att-start" value="${esc(view.start)}"></label>
-            <label>⏱ دقائق السماح <input type="number" id="att-grace" min="0" max="120" value="${esc(view.grace)}"></label>
+            <div class="shift-info">
+              <div><span class="muted">🕗 بداية الدوام</span><b class="num">${esc(A.settings().start)}</b></div>
+              <div><span class="muted">⏱ دقائق السماح</span><b class="num">${esc(A.settings().grace)}</b></div>
+              <div class="muted small-note">${A.state.isAdmin ? 'تُعدَّل من <a href="#settings">⚙️ الإعدادات</a>' : "يحدّدها مدير النظام"}</div>
+            </div>
             <button class="btn btn-primary btn-block" id="att-run" ${view.lastFile ? "" : "disabled"}>🔄 إعادة الحساب</button>
           </div>
         </div>
@@ -298,8 +301,8 @@
     const fileInput = $("#att-file");
     const dz = $("#dropzone");
     const run = async (file, silent = false) => {
-      view.start = $("#att-start").value || R.DEFAULT_START;
-      view.grace = $("#att-grace").value || 0;
+      view.start = A.settings().start;
+      view.grace = A.settings().grace;
       A.loading(true, "جاري قراءة ملف البصمة والحساب...");
       try {
         view.results = await processFile(file, view.start, view.grace);
