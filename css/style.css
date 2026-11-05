@@ -250,3 +250,13 @@ table.view-grid td { padding: 8px; }
 table.view-grid tbody tr { cursor: default; }
 #sum-body tr { cursor: pointer; }
 tr.row-selected td { background: var(--primary-soft) !important; }
+
+/* =========================================================
+   الإعدادات
+   ========================================================= */
+.settings-row { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: stretch; }
+@media (max-width: 760px) { .settings-row { grid-template-columns: 1fr; } }
+.dropzone.small { min-height: 120px; padding: 14px; }
+.settings-side { display: flex; flex-direction: column; justify-content: center; gap: 12px; background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.preview-list { display: flex; flex-direction: column; gap: 4px; }
+.small-list { font-size: 12px; margin-top: 2px; }

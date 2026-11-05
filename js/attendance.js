@@ -521,6 +521,8 @@
     },
   };
 
+  const LOGO_URL = () => new URL("assets/logo.png", location.href).href;
+
   function reportHTML(r, lang) {
     const T = TX[lang], esc = window.APP.esc;
     const [, mm, yy] = fmtD(r.pTo).split("/");
@@ -533,6 +535,7 @@
     return `<section class="report" dir="${T.dir}">
       <header>
         <div><h1>${T.title(mm, yy)}</h1><div class="sub">${T.period}: ${fmtD(r.pFrom)} — ${fmtD(r.pTo)}</div></div>
+        <img class="logo" src="${LOGO_URL()}" alt="">
       </header>
       <div class="info">
         <div><b>${T.name}:</b> ${esc(lang === "en" && r.nameEn ? r.nameEn : r.name)}${lang === "ar" && r.nameEn ? ` <span class="sub">(${esc(r.nameEn)})</span>` : ""}</div>
@@ -578,6 +581,7 @@
       .report:last-child { page-break-after: auto; }
       header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 10px; }
       h1 { font-size: 19px; margin: 0; color: #1e3a8a; }
+      header .logo { height: 52px; width: auto; }
       h2 { font-size: 13.5px; margin: 14px 0 6px; color: #1e3a8a; border-inline-start: 4px solid #2563eb; padding-inline-start: 8px; }
       .sub { color: #64748b; font-size: 11px; }
       .info { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; background: #f1f5fb; border: 1px solid #dbe3ef; border-radius: 8px; padding: 8px 12px; }
@@ -611,7 +615,9 @@
     frame.onload = () => {
       const w = frame.contentWindow;
       const go = () => { w.focus(); w.print(); };
-      (w.document.fonts && w.document.fonts.ready ? w.document.fonts.ready : Promise.resolve()).then(() => setTimeout(go, 150));
+      const imgs = [...w.document.images].map((im) => (im.complete ? Promise.resolve() : new Promise((ok) => { im.onload = im.onerror = ok; })));
+      const fonts = w.document.fonts && w.document.fonts.ready ? w.document.fonts.ready : Promise.resolve();
+      Promise.all([fonts, ...imgs]).then(() => setTimeout(go, 150));
     };
   }
 

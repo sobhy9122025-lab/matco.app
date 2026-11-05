@@ -103,6 +103,11 @@
       employees: () => fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation"),
       all: (table) => fetchAll(table),
       async insert(table, rows) { return check(await sb.from(table).insert(rows).select()); },
+      async upsert(table, rows, onConflict) { check(await sb.from(table).upsert(rows, { onConflict })); },
+      async isAdmin() {
+        const { data, error } = await sb.from("app_admins").select("email").limit(1);
+        return !error && Array.isArray(data) && data.length > 0;
+      },
       async update(table, key, id, fields) { check(await sb.from(table).update(fields).eq(key, id)); },
       async remove(table, key, ids) {
         for (let i = 0; i < ids.length; i += 200) check(await sb.from(table).delete().in(key, ids.slice(i, i + 200)));
@@ -127,6 +132,7 @@
   // =========================================================
   const state = {
     user: null,
+    isAdmin: false,
     employees: new Map(),   // id -> employee
     empList: [],            // للبحث
     data: { leaves: null, absences: null },
@@ -144,6 +150,11 @@
       state.employees.set(id, e);
       state.empList.push({ ...e, hay: `${e.name} ${e.nameEn} ${id}`.toLowerCase() });
     }
+  }
+
+  function showConnStatus() {
+    $("#conn-status").textContent = `متصل بقاعدة البيانات — ${state.employees.size.toLocaleString("en-US")} موظف`;
+    $("#conn-status").className = "brand-sub ok";
   }
 
   async function loadKind(kind, force = false) {
@@ -169,8 +180,9 @@
     loading(true, "جاري تحميل البيانات...");
     try {
       await loadEmployees();
-      $("#conn-status").textContent = `متصل بقاعدة البيانات — ${state.employees.size.toLocaleString("en-US")} موظف`;
-      $("#conn-status").className = "brand-sub ok";
+      showConnStatus();
+      try { state.isAdmin = DB.isAdmin ? await DB.isAdmin() : false; } catch (_) { state.isAdmin = false; }
+      $("#nav-settings").hidden = !state.isAdmin;
     } catch (e) {
       $("#conn-status").textContent = "تعذّر الاتصال: " + errMsg(e);
       $("#conn-status").className = "brand-sub bad";
@@ -208,6 +220,8 @@
     if (hasPendingChanges() && !confirm("فيه تعديلات غير محفوظة. تخرج برضه؟")) return;
     await DB.signOut();
     state.user = null;
+    state.isAdmin = false;
+    $("#nav-settings").hidden = true;
     state.data = { leaves: null, absences: null };
     state.ui = {};
     showLogin();
@@ -798,7 +812,11 @@
   }
 
   // واجهة مشتركة لباقي الصفحات (تقرير البصمة / التقارير)
-  window.APP = { state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS };
+  window.APP = {
+    state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS,
+    async reloadEmployees() { await loadEmployees(); showConnStatus(); },
+    resetRecordPages() { for (const k of Object.keys(state.ui)) state.ui[k].rows = null; },
+  };
 
   // =========================================================
   // البداية
