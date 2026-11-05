@@ -131,7 +131,9 @@
     const dept = emp.dept || rows.find((r) => r.deptAtt)?.deptAtt || "";
     const saudi = isSaudi(emp.nat);
     const daily = isDailyHours(emp.rule);
-    const satWork = !saudi && rows.some((r) => r.date && dow(r.date) === 6);
+    // دوام السبت: محدد يدويًا للموظف (work / off)، وإلا تلقائي حسب الجنسية والبصمة
+    const satRule = String(emp.sat || "").toLowerCase();
+    const satWork = satRule === "work" ? true : satRule === "off" ? false : (!saudi && rows.some((r) => r.date && dow(r.date) === 6));
     const isWorkday = (iso) => !holidayOf(iso) && dow(iso) !== 5 && (dow(iso) !== 6 || satWork);
 
     const first = rows.find((r) => r.date);
@@ -241,7 +243,7 @@
 
     return {
       id, name, nameEn: emp.nameEn || "", dept, job: emp.job || "", nat: emp.nat || "",
-      saudi, daily, satWork, pFrom, pTo, inEmployees: !!ctx.employees.get(id),
+      saudi, daily, satWork, satManual: satRule === "work" || satRule === "off", pFrom, pTo, inEmployees: !!ctx.employees.get(id),
       lateDays, totLate, earlyDays, totEarly, totOver, excLate, excEarly,
       absences, excusedDays: absences.filter((a) => a.excused).length,
       leaveDays: leaveDays.sort((a, b) => a.date.localeCompare(b.date)),
@@ -444,7 +446,7 @@
               ${r.dept ? `<span class="tag">${esc(r.dept)}</span>` : ""}
               ${r.job ? `<span class="tag">${esc(r.job)}</span>` : ""}
               ${r.nat ? `<span class="tag">${esc(r.nat)}</span>` : ""}
-              <span class="tag">${r.satWork ? "إجازة الجمعة فقط" : "إجازة الجمعة والسبت"}</span>
+              <span class="tag">${r.satWork ? "إجازة الجمعة فقط" : "إجازة الجمعة والسبت"}${r.satManual ? " (محدد يدويًا)" : ""}</span>
               ${r.daily ? '<span class="tag warn-tag">مستثنى — ساعات يومية</span>' : ""}
               ${r.inEmployees ? "" : '<span class="tag warn-tag">⚠️ غير موجود في جدول الموظفين</span>'}
             </div>

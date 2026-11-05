@@ -42,11 +42,18 @@
     return ["ساعات يومية", "مستثنى", "استثناء", "daily_hours", "daily hours", "hours", "exempt"].includes(s) ? "daily_hours" : null;
   }
 
-  const TEMPLATE_HEADERS = ["الرقم الوظيفي", "الاسم العربي", "الاسم الإنجليزي", "رقم الهوية / الإقامة", "القسم", "الوظيفة", "الجنسية", "طريقة الاحتساب"];
+  function normSat(v) {
+    const s = String(v ?? "").trim().toLowerCase();
+    if (["نعم", "يعمل", "yes", "work", "1", "true"].includes(s)) return "work";
+    if (["لا", "إجازة", "اجازة", "no", "off", "0", "false"].includes(s)) return "off";
+    return null;
+  }
+
+  const TEMPLATE_HEADERS = ["الرقم الوظيفي", "الاسم العربي", "الاسم الإنجليزي", "رقم الهوية / الإقامة", "القسم", "الوظيفة", "الجنسية", "طريقة الاحتساب", "دوام السبت"];
 
   function downloadTemplate(rows, fileName) {
     const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, ...rows]);
-    ws["!cols"] = [{ wch: 14 }, { wch: 32 }, { wch: 30 }, { wch: 18 }, { wch: 24 }, { wch: 28 }, { wch: 14 }, { wch: 16 }];
+    ws["!cols"] = [{ wch: 14 }, { wch: 32 }, { wch: 30 }, { wch: 18 }, { wch: 24 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
     const help = XLSX.utils.aoa_to_sheet([
       ["العمود", "إلزامي؟", "الوصف"],
       ["الرقم الوظيفي", "نعم", "رقم الموظف كما يظهر في ملف البصمة (Employee ID). لا يتكرر."],
@@ -57,8 +64,9 @@
       ["الوظيفة", "لا", "المسمى الوظيفي."],
       ["الجنسية", "نعم", "مهمة للاحتساب: غير السعودي الذي يبصم يوم السبت يُعدّ السبت يوم عمل له. اكتب Saudi أو سعودي للسعودي."],
       ["طريقة الاحتساب", "لا", "اتركها فارغة للاحتساب العادي، أو اكتب «ساعات يومية» للموظف المستثنى (يُحسب له الإضافي والصافي)."],
+      ["دوام السبت", "لا", "اتركه فارغًا ليُحدَّد تلقائيًا (غير السعودي الذي يبصم السبت يُعدّ السبت يوم عمل له)، أو اكتب «نعم» إذا كان للموظف دوام سبت (حتى لو كان سعوديًا)، أو «لا» إذا كان السبت إجازة له دائمًا."],
       [],
-      ["مثال", "", "33120 | محمد أحمد علي | Mohamed Ahmed Ali | 2412345678 | | Accounting | محاسب | Egyptian | (فارغ = عادي)"],
+      ["مثال", "", "33120 | محمد أحمد علي | Mohamed Ahmed Ali | 2412345678 | | Accounting | محاسب | Saudi | (فارغ = عادي) | نعم"],
       ["ملاحظات", "", "الموظف الموجود تُحدَّث بياناته، والجديد يُضاف، ولا يُحذف أحد. لا تضف الآيبان ولا بيانات شخصية أخرى."],
     ]);
     help["!cols"] = [{ wch: 16 }, { wch: 10 }, { wch: 95 }];
@@ -88,9 +96,10 @@
         job_title: text(pick(r, "الوظيفة", "Contrac Profession", "job_title")),
         nationality: text(pick(r, "الجنسية", "Nationality", "nationality")),
         attendance_calculation: normRule(pick(r, "طريقة الاحتساب", "attendance_calculation", "Attendance Calculation")),
+        saturday_rule: normSat(pick(r, "دوام السبت", "saturday_rule")),
       });
     }
-    return { sheetName, rows: [...map.values()] };
+    return { sheetName, rows: [...map.values()], hasSatCol: rows.length > 0 && ("دوام السبت" in rows[0] || "saturday_rule" in rows[0]) };
   }
 
   // ---------------- الإجازات والغياب السابقة ----------------
@@ -199,6 +208,7 @@
           <label>الوظيفة <input id="oe-job"></label>
           <label>الجنسية * <input id="oe-nat" list="nat-list" required placeholder="Saudi / Egyptian ..."></label>
           <label>طريقة الاحتساب <select id="oe-rule"><option value="">عادي</option><option value="daily_hours">ساعات يومية (مستثنى)</option></select></label>
+          <label>دوام السبت <select id="oe-sat"><option value="">تلقائي (حسب الجنسية)</option><option value="work">يعمل السبت</option><option value="off">السبت إجازة</option></select></label>
           <div class="one-emp-actions"><span id="oe-state" class="tag">جديد</span><button class="btn btn-primary" type="submit" id="oe-save">💾 حفظ الموظف</button></div>
         </form>
         <datalist id="dept-list"></datalist><datalist id="nat-list"></datalist>
@@ -313,7 +323,7 @@
 
     // ---------- القالب ----------
     const empRows = () => [...A.state.employees.values()].sort((a, b) => +a.id - +b.id || a.id.localeCompare(b.id))
-      .map((e) => [e.id, e.name, e.nameEn, e.nid || "", e.dept, e.job, e.nat, e.rule === "daily_hours" ? "ساعات يومية" : ""]);
+      .map((e) => [e.id, e.name, e.nameEn, e.nid || "", e.dept, e.job, e.nat, e.rule === "daily_hours" ? "ساعات يومية" : "", e.sat === "work" ? "نعم" : e.sat === "off" ? "لا" : ""]);
     $("#tpl-empty").addEventListener("click", () => downloadTemplate([], "قالب_الموظفين.xlsx"));
     $("#tpl-current").addEventListener("click", () => downloadTemplate(empRows(), `الموظفون_${new Date().toISOString().slice(0, 10)}.xlsx`));
 
@@ -321,13 +331,17 @@
     const uniq = (k) => [...new Set([...A.state.employees.values()].map((e) => e[k]).filter(Boolean))].sort();
     $("#dept-list").innerHTML = uniq("dept").map((d) => `<option value="${esc(d)}">`).join("");
     $("#nat-list").innerHTML = uniq("nat").map((d) => `<option value="${esc(d)}">`).join("");
+    let lastFilled = "";
     const fill = () => {
-      const e = A.state.employees.get(A.cleanId($("#oe-id").value));
+      const cur = A.cleanId($("#oe-id").value);
+      if (cur === lastFilled) return;      // نفس الموظف — لا نمسح ما عدّله المستخدم
+      lastFilled = cur;
+      const e = A.state.employees.get(cur);
       $("#oe-state").textContent = e ? "موجود — سيتم التعديل" : "جديد";
       $("#oe-state").className = "tag " + (e ? "warn-tag" : "ok-tag");
       if (e) {
         $("#oe-ar").value = e.name || ""; $("#oe-en").value = e.nameEn || ""; $("#oe-nid").value = e.nid || ""; $("#oe-dept").value = e.dept || "";
-        $("#oe-job").value = e.job || ""; $("#oe-nat").value = e.nat || ""; $("#oe-rule").value = e.rule === "daily_hours" ? "daily_hours" : "";
+        $("#oe-job").value = e.job || ""; $("#oe-nat").value = e.nat || ""; $("#oe-rule").value = e.rule === "daily_hours" ? "daily_hours" : ""; $("#oe-sat").value = e.sat === "work" || e.sat === "off" ? e.sat : "";
       }
     };
     $("#oe-id").addEventListener("change", fill);
@@ -341,6 +355,7 @@
         national_id: A.cleanId($("#oe-nid").value) || null,
         department: $("#oe-dept").value.trim() || null, job_title: $("#oe-job").value.trim() || null,
         nationality: $("#oe-nat").value.trim() || null, attendance_calculation: $("#oe-rule").value || null,
+        saturday_rule: $("#oe-sat").value || null,
       };
       const existed = A.state.employees.has(id);
       $("#oe-save").disabled = true;
@@ -348,8 +363,8 @@
         await A.DB.upsert("employees", [row], "employee_id");
         await A.reloadEmployees();
         A.toast(existed ? `✅ تم تعديل بيانات ${row.name_ar}` : `✅ تمت إضافة الموظف ${row.name_ar}`, "ok");
-        $("#one-emp").reset(); $("#oe-state").textContent = "جديد"; $("#oe-state").className = "tag ok-tag";
-      } catch (e) { A.toast("تعذّر الحفظ: " + A.errMsg(e) + (/national_id/.test(A.errMsg(e)) ? " — شغّل ملف database/5_national_id.sql في Supabase أولًا" : ""), "bad"); }
+        $("#one-emp").reset(); lastFilled = ""; $("#oe-state").textContent = "جديد"; $("#oe-state").className = "tag ok-tag";
+      } catch (e) { A.toast("تعذّر الحفظ: " + A.errMsg(e) + (/national_id|saturday_rule/.test(A.errMsg(e)) ? " — شغّل ملفَي database/5_national_id.sql و database/6_saturday.sql في Supabase أولًا" : ""), "bad"); }
       $("#oe-save").disabled = false;
     });
 
@@ -380,7 +395,10 @@
       // رقم الهوية الفارغ في الملف لا يمسح الرقم المحفوظ مسبقًا
       const rows = view.emp.rows.map((r) => {
         const old = A.state.employees.get(r.employee_id);
-        return !r.national_id && old && old.nid ? { ...r, national_id: old.nid } : r;
+        const x = { ...r };
+        if (!x.national_id && old && old.nid) x.national_id = old.nid;
+        if (!x.saturday_rule && old && old.sat && !view.emp.hasSatCol) x.saturday_rule = old.sat;
+        return x;
       });
       $("#emp-go").disabled = true;
       try {
@@ -393,7 +411,7 @@
         view.emp = null;
         render(root);
       } catch (e) {
-        A.toast("تعذّر رفع الموظفين: " + A.errMsg(e) + (/national_id/.test(A.errMsg(e)) ? " — شغّل ملف database/5_national_id.sql في Supabase أولًا" : ""), "bad");
+        A.toast("تعذّر رفع الموظفين: " + A.errMsg(e) + (/national_id|saturday_rule/.test(A.errMsg(e)) ? " — شغّل ملفَي database/5_national_id.sql و database/6_saturday.sql في Supabase أولًا" : ""), "bad");
         $("#emp-go").disabled = false;
       } finally { A.loading(false); }
     }

@@ -101,6 +101,8 @@
       async signIn(email, password) { return check(await sb.auth.signInWithPassword({ email, password })).user; },
       async signOut() { await sb.auth.signOut(); },
       async employees() {
+        try { return await fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation,national_id,saturday_rule"); }
+        catch (_) { /* قبل إضافة عمود السبت */ }
         try { return await fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation,national_id"); }
         catch (_) { return fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation"); } // قبل إضافة عمود الهوية
       },
@@ -160,7 +162,7 @@
     for (const r of rows) {
       const id = cleanId(r.employee_id);
       if (!id) continue;
-      const e = { id, name: r.name_ar || r.name_en || "", nameEn: r.name_en || "", dept: r.department || "", job: r.job_title || "", nat: r.nationality || "", rule: r.attendance_calculation || "", nid: cleanId(r.national_id) };
+      const e = { id, name: r.name_ar || r.name_en || "", nameEn: r.name_en || "", dept: r.department || "", job: r.job_title || "", nat: r.nationality || "", rule: r.attendance_calculation || "", nid: cleanId(r.national_id), sat: r.saturday_rule || "" };
       state.employees.set(id, e);
       state.empList.push({ ...e, hay: `${e.name} ${e.nameEn} ${id} ${e.nid}`.toLowerCase() });
     }
