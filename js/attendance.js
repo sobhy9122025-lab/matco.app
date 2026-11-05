@@ -220,13 +220,23 @@
     // التأخير/الخروج اللي ليه عذر مسجّل (بيتعرض لوحده — الإجمالي ما بيتغيرش)
     const excLate = details.filter((d) => d.excuseType === "تأخير بعذر" || d.excuseType === "أخرى").reduce((t, d) => t + d.late, 0);
     const excEarly = details.filter((d) => d.excuseType === "خروج مبكر بإذن" || d.excuseType === "أخرى").reduce((t, d) => t + d.early, 0);
-    const excuses = recs.filter((a) => LATE_TYPES.includes(a.record_type) && String(a.end_date || a.start_date).slice(0, 10) >= pFrom && String(a.start_date).slice(0, 10) <= pTo)
+    // كل التسجيلات من صفحة "الغياب والتأخير" اللي في الفترة — أي نوع — ومعاها أثرها على التقرير
+    const excuses = recs.filter((a) => String(a.end_date || a.start_date).slice(0, 10) >= pFrom && String(a.start_date).slice(0, 10) <= pTo)
       .map((a) => {
         const s = String(a.start_date).slice(0, 10), e = String(a.end_date || a.start_date).slice(0, 10);
+        const inRange = (d) => d >= s && d <= e;
+        if (DAY_TYPES.includes(a.record_type)) {
+          const hits = absences.filter((x) => inRange(x.date) && x.type === a.record_type);
+          const presentDays = [...present].filter(inRange).length;
+          return { ...a, kind: "day", matched: hits.length, matchedMin: 0,
+            note: hits.length ? `${hits.length} يوم غياب` : presentDays ? "الموظف كان حاضر (له بصمة) في الأيام دي" : "الأيام دي إجازة أو عطلة" };
+        }
         const useLate = a.record_type !== "خروج مبكر بإذن", useEarly = a.record_type !== "تأخير بعذر";
         const mins = (d) => (useLate ? d.late : 0) + (useEarly ? d.early : 0);
-        const hits = details.filter((d) => d.date >= s && d.date <= e && mins(d) > 0);
-        return { ...a, matched: hits.length, matchedMin: hits.reduce((t, d) => t + mins(d), 0) };
+        const hits = details.filter((d) => inRange(d.date) && mins(d) > 0);
+        const m = hits.reduce((t, d) => t + mins(d), 0);
+        return { ...a, kind: "late", matched: hits.length, matchedMin: m,
+          note: hits.length ? `${hits.length} يوم — ${minToHM(m)}` : `مفيش ${a.record_type === "خروج مبكر بإذن" ? "خروج مبكر" : a.record_type === "تأخير بعذر" ? "تأخير" : "تأخير أو خروج مبكر"} في الأيام دي` };
       });
 
     return {
@@ -458,7 +468,7 @@
           <div class="tabs">
             <button class="tab active" data-tab="details">🧾 التفاصيل اليومية (${r.details.length})</button>
             <button class="tab" data-tab="abs">🚫 الغياب والإجازات (${r.absences.length + r.leaveDays.length})</button>
-            <button class="tab" data-tab="exc">📝 أعذار التأخير المسجّلة (${r.excuses.length})</button>
+            <button class="tab" data-tab="exc">📝 التسجيلات والأعذار (${r.excuses.length})</button>
           </div>
           <div data-pane="details">
             ${r.details.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr>
@@ -470,8 +480,8 @@
             ${r.excuses.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr><th>رقم السجل</th><th>من</th><th>إلى</th><th>النوع</th><th>السبب</th><th>انعكس على</th></tr></thead><tbody>
               ${r.excuses.map((x) => `<tr><td class="num">${esc(x.record_id || "")}</td><td class="num">${fmtD(String(x.start_date).slice(0, 10))}</td><td class="num">${fmtD(String(x.end_date || x.start_date).slice(0, 10))}</td>
                 <td><span class="tag">${esc(x.record_type)}</span></td><td>${esc(x.reason || "—")}</td>
-                <td>${x.matched ? `<span class="tag ok-tag">${x.matched} يوم — ${minToHM(x.matchedMin)}</span>` : '<span class="tag warn-tag">مفيش تأخير أو خروج مبكر في الأيام دي</span>'}</td></tr>`).join("")}
-            </tbody></table></div>` : `<div class="muted">لا توجد أعذار مسجّلة لهذا الموظف في الفترة ${fmtD(r.pFrom)} → ${fmtD(r.pTo)}. سجّلها من صفحة <a href="#absences">⏰ الغياب والتأخير</a>.</div>`}
+                <td><span class="tag ${x.matched ? "ok-tag" : "warn-tag"}">${esc(x.note)}</span></td></tr>`).join("")}
+            </tbody></table></div>` : `<div class="muted">لا توجد تسجيلات لهذا الموظف في الفترة ${fmtD(r.pFrom)} → ${fmtD(r.pTo)}. سجّلها من صفحة <a href="#absences">⏰ الغياب والتأخير</a>.</div>`}
           </div>
           <div data-pane="abs" hidden>
             <div class="two-col">
@@ -522,7 +532,7 @@
       job: "الوظيفة", nat: "الجنسية", sched: "أيام الإجازة", schedFri: "الجمعة فقط", schedFriSat: "الجمعة والسبت", rule: "طريقة الاحتساب",
       ruleDaily: "ساعات يومية (مستثنى)", ruleNormal: "عادي", lateDays: "أيام التأخير", totLate: "إجمالي التأخير", earlyDays: "أيام الخروج المبكر",
       totEarly: "إجمالي الخروج المبكر", absDays: "أيام الغياب", excused: "بإذن", unexcused: "بدون إذن", leaves: "إجازات معتمدة",
-      deficit: "إجمالي التأخيرات", withExcuse: "منها بعذر", over: "الإضافي", net: "الصافي", secDetails: "التأخير والخروج المبكر", secAbs: "الغياب", secExc: "أعذار التأخير والخروج المبكر",
+      deficit: "إجمالي التأخيرات", withExcuse: "منها بعذر", over: "الإضافي", net: "الصافي", secDetails: "التأخير والخروج المبكر", secAbs: "الغياب", secExc: "التسجيلات والأعذار", effect: "الأثر",
       secLeaves: "الإجازات المعتمدة", day: "اليوم", date: "التاريخ", first: "أول بصمة", last: "آخر بصمة", worked: "ساعات العمل", late: "التأخير",
       early: "الخروج المبكر", excuse: "العذر", type: "النوع", reason: "السبب", from: "من", to: "إلى", none: "لا يوجد",
       printed: "تاريخ الطباعة", empSign: "توقيع الموظف", mgrSign: "توقيع المدير المباشر", days: DAY_AR,
@@ -533,7 +543,7 @@
       job: "Job Title", nat: "Nationality", sched: "Weekend", schedFri: "Friday only", schedFriSat: "Friday & Saturday", rule: "Calculation",
       ruleDaily: "Daily hours (exempt)", ruleNormal: "Standard", lateDays: "Late Days", totLate: "Total Late", earlyDays: "Early Leave Days",
       totEarly: "Total Early Leave", absDays: "Absent Days", excused: "Excused", unexcused: "Unexcused", leaves: "Approved Leave Days",
-      deficit: "Total Deficit", withExcuse: "excused", over: "Overtime", net: "Net", secDetails: "Late Arrival & Early Leave", secAbs: "Absences", secExc: "Late / Early Leave Excuses",
+      deficit: "Total Deficit", withExcuse: "excused", over: "Overtime", net: "Net", secDetails: "Late Arrival & Early Leave", secAbs: "Absences", secExc: "Registered Excuses", effect: "Effect",
       secLeaves: "Approved Leaves", day: "Day", date: "Date", first: "First In", last: "Last Out", worked: "Worked", late: "Late",
       early: "Early Leave", excuse: "Excuse", type: "Type", reason: "Reason", from: "From", to: "To", none: "None",
       printed: "Printed on", empSign: "Employee Signature", mgrSign: "Line Manager Signature", days: DAY_EN,
@@ -585,7 +595,8 @@
       <h2>${T.secAbs}</h2>
       ${table([T.day, T.date, T.type, T.reason], r.absences.map((a) => [T.days[dow(a.date)], fmtD(a.date), esc(T.typeName(a.type)), esc(a.reason || "—")]))}
 
-      ${r.excuses.length ? `<h2>${T.secExc}</h2>${table([T.from, T.to, T.type, T.reason], r.excuses.map((x) => [fmtD(String(x.start_date).slice(0, 10)), fmtD(String(x.end_date || x.start_date).slice(0, 10)), esc(T.typeName(x.record_type)), esc(x.reason || "—")]))}` : ""}
+      ${r.excuses.length ? `<h2>${T.secExc}</h2>${table([T.from, T.to, T.type, T.reason, T.effect], r.excuses.map((x) => [fmtD(String(x.start_date).slice(0, 10)), fmtD(String(x.end_date || x.start_date).slice(0, 10)), esc(T.typeName(x.record_type)), esc(x.reason || "—"),
+        lang === "ar" ? esc(x.note) : (x.matched ? `${x.matched} day(s)${x.matchedMin ? " — " + minToHM(x.matchedMin) : ""}` : "No effect")]))}` : ""}
 
       <h2>${T.secLeaves}</h2>
       ${table([T.day, T.date, T.type], r.leaveDays.map((l) => [T.days[dow(l.date)], fmtD(l.date), esc(T.typeName(l.type))]))}
@@ -598,51 +609,67 @@
   function printReports(list, lang) {
     const T = TX[lang];
     const css = `
-      @page { size: A4; margin: 12mm; }
-      * { box-sizing: border-box; }
-      body { font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; color: #0f172a; margin: 0; font-size: 11.5px; }
-      .report { page-break-after: always; }
-      .report:last-child { page-break-after: auto; }
-      header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 10px; }
-      h1 { font-size: 19px; margin: 0; color: #1e3a8a; }
-      header .logo { height: 52px; width: auto; }
-      h2 { font-size: 13.5px; margin: 14px 0 6px; color: #1e3a8a; border-inline-start: 4px solid #2563eb; padding-inline-start: 8px; }
-      .sub { color: #64748b; font-size: 11px; }
-      .info { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; background: #f1f5fb; border: 1px solid #dbe3ef; border-radius: 8px; padding: 8px 12px; }
-      .boxes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
-      .box { border: 1px solid #dbe3ef; border-radius: 8px; padding: 6px 8px; text-align: center; }
-      .box .v { font-size: 15px; font-weight: 800; color: #1d4ed8; }
-      .box .v small { font-size: 9.5px; color: #475569; font-weight: 600; }
-      .box .l { font-size: 10px; color: #475569; font-weight: 700; }
+      @page { size: A4 portrait; margin: 10mm; }
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body { margin: 0; padding: 0; background: #eef1f6; }
+      body { font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; color: #0f172a; font-size: 10.5px; line-height: 1.45; }
+      .toolbar { position: sticky; top: 0; z-index: 5; background: #1e3a8a; color: #fff; padding: 10px 16px; display: flex; gap: 10px; align-items: center; justify-content: center; font-family: inherit; }
+      .toolbar button { font: inherit; font-weight: 700; border: 0; border-radius: 8px; padding: 8px 18px; cursor: pointer; background: #fff; color: #1e3a8a; }
+      .toolbar span { opacity: .85; font-size: 12px; }
+      /* الورقة: عرض A4 الصافي (210 − 20 هامش) */
+      .report { width: 190mm; margin: 12px auto; background: #fff; padding: 8mm; box-shadow: 0 2px 10px rgba(0,0,0,.08); page-break-after: always; break-after: page; }
+      .report:last-child { page-break-after: auto; break-after: auto; }
+      header { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 3px solid #1e3a8a; padding-bottom: 6px; margin-bottom: 8px; }
+      header .logo { height: 44px; width: auto; max-width: 45%; object-fit: contain; }
+      h1 { font-size: 16px; margin: 0; color: #1e3a8a; }
+      h2 { font-size: 12px; margin: 10px 0 4px; color: #1e3a8a; border-inline-start: 4px solid #2563eb; padding-inline-start: 6px; break-after: avoid; }
+      .sub { color: #64748b; font-size: 10px; }
+      .info { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; background: #f1f5fb; border: 1px solid #dbe3ef; border-radius: 6px; padding: 6px 10px; }
+      .info div { overflow-wrap: anywhere; }
+      .boxes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+      .box { border: 1px solid #dbe3ef; border-radius: 6px; padding: 4px 6px; text-align: center; min-width: 0; }
+      .box .v { font-size: 13px; font-weight: 800; color: #1d4ed8; }
+      .box .v small { font-size: 8.5px; color: #475569; font-weight: 600; }
+      .box .l { font-size: 9px; color: #475569; font-weight: 700; }
       .box.hl { background: #fef2f2; border-color: #fecaca; } .box.hl .v { color: #b91c1c; }
-      table { width: 100%; border-collapse: collapse; }
-      th { background: #1e3a8a; color: #fff; font-weight: 700; padding: 5px 6px; font-size: 11px; text-align: start; }
-      td { border-bottom: 1px solid #e2e8f0; padding: 4px 6px; text-align: start; }
+      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      th { background: #1e3a8a; color: #fff; font-weight: 700; padding: 3px 4px; font-size: 9.5px; text-align: start; }
+      td { border-bottom: 1px solid #e2e8f0; padding: 2.5px 4px; text-align: start; overflow-wrap: anywhere; font-size: 9.5px; }
       tr:nth-child(even) td { background: #f8fafc; }
-      thead { display: table-header-group; } tr { page-break-inside: avoid; }
-      .none { color: #64748b; padding: 6px 2px; }
-      .signs { display: flex; gap: 40px; margin-top: 28px; }
+      thead { display: table-header-group; } tr { break-inside: avoid; page-break-inside: avoid; }
+      .none { color: #64748b; padding: 4px 2px; }
+      .signs { display: flex; gap: 30px; margin-top: 18px; break-inside: avoid; }
       .signs div { flex: 1; font-weight: 700; color: #334155; }
-      .signs span { display: block; border-bottom: 1px solid #94a3b8; height: 28px; }
-      footer { margin-top: 14px; color: #94a3b8; font-size: 10px; text-align: center; }
-      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }`;
-    const html = `<!doctype html><html lang="${lang}" dir="${T.dir}"><head><meta charset="utf-8"><title>${list.length === 1 ? (list[0].name || list[0].id) : "Attendance"} — ${list[0].pTo}</title>
+      .signs span { display: block; border-bottom: 1px solid #94a3b8; height: 24px; }
+      footer { margin-top: 10px; color: #94a3b8; font-size: 9px; text-align: center; }
+      @media print {
+        html, body { background: #fff; }
+        .toolbar { display: none; }
+        .report { width: auto; margin: 0; padding: 0; box-shadow: none; }
+      }`;
+    const title = `${list.length === 1 ? (list[0].name || list[0].id) : "تقارير البصمة"} — ${list[0].pTo}`;
+    const html = `<!doctype html><html lang="${lang}" dir="${T.dir}"><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1"><title>${window.APP.esc(title)}</title>
+      <base href="${new URL(".", location.href).href}">
       <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${css}</style></head>
-      <body>${list.map((r) => reportHTML(r, lang)).join("")}</body></html>`;
-    let frame = document.getElementById("print-frame");
-    if (frame) frame.remove();
-    frame = document.createElement("iframe");
-    frame.id = "print-frame";
-    frame.style.cssText = "position:fixed;left:-10000px;top:0;width:900px;height:1200px;border:0";
-    document.body.appendChild(frame);
-    frame.srcdoc = html;
-    frame.onload = () => {
-      const w = frame.contentWindow;
-      const go = () => { w.focus(); w.print(); };
-      const imgs = [...w.document.images].map((im) => (im.complete ? Promise.resolve() : new Promise((ok) => { im.onload = im.onerror = ok; })));
-      const fonts = w.document.fonts && w.document.fonts.ready ? w.document.fonts.ready : Promise.resolve();
-      Promise.all([fonts, ...imgs]).then(() => setTimeout(go, 150));
-    };
+      <body>
+        <div class="toolbar"><button onclick="window.print()">🖨️ ${lang === "ar" ? "طباعة / حفظ PDF" : "Print / Save as PDF"}</button>
+          <span>${lang === "ar" ? "من نافذة الطباعة اختر «Save as PDF» ومقاس الورق A4" : "In the print dialog choose “Save as PDF” and paper size A4"}</span></div>
+        ${list.map((r) => reportHTML(r, lang)).join("")}
+        <script>
+          (function () {
+            var imgs = Array.prototype.slice.call(document.images);
+            var wait = imgs.map(function (im) { return im.complete ? Promise.resolve() : new Promise(function (ok) { im.onload = im.onerror = ok; }); });
+            var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+            Promise.all([fonts].concat(wait)).then(function () { setTimeout(function () { window.print(); }, 300); });
+          })();
+        <\/script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { window.APP.toast("المتصفح منع فتح صفحة التقرير — اسمح بالنوافذ المنبثقة للموقع ده وجرب تاني", "bad"); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
   }
 
   window.PAGES = window.PAGES || {};
