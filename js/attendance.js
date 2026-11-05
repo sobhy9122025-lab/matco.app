@@ -557,6 +557,29 @@
 
   const LOGO_URL = () => new URL("assets/logo.png", location.href).href;
 
+  // جدول التأخير المختصر للـ PDF: عمودين جنب بعض، والخانات الصفرية فاضية
+  function compactDetails(r, T) {
+    if (!r.details.length) return `<div class="none">${T.none}</div>`;
+    const short = { "تأخير بعذر": "✓", "خروج مبكر بإذن": "✓", "أخرى": "✓" };
+    const shortEn = short;
+    const v = (m) => (m ? minToHM(m) : "");
+    const H = T.dir === "rtl"
+      ? { d: "اليوم", t: "دخول – خروج", w: "عمل", l: "تأخير", e: "خروج", o: "إضافي", x: "عذر" }
+      : { d: "Day", t: "In – Out", w: "Work", l: "Late", e: "Early", o: "OT", x: "Exc." };
+    const head = `<tr><th class="c-d">${H.d}</th><th class="c-t">${H.t}</th>${r.daily ? `<th>${H.w}</th>` : ""}<th>${H.l}</th><th>${H.e}</th>${r.daily ? `<th>${H.o}</th>` : ""}<th class="c-x">${H.x}</th></tr>`;
+    const row = (d) => `<tr>
+        <td class="c-d"><b>${T.days[dow(d.date)].slice(0, T.dir === "rtl" ? 10 : 3)}</b> ${fmtD(d.date).slice(0, 5)}</td>
+        <td class="c-t"><span dir="ltr">${secToHM(d.first) || "—"} – ${secToHM(d.last) || "—"}</span></td>
+        ${r.daily ? `<td>${v(d.worked)}</td>` : ""}
+        <td class="${d.late ? "red" : ""}">${v(d.late)}</td><td class="${d.early ? "red" : ""}">${v(d.early)}</td>
+        ${r.daily ? `<td class="${d.over ? "green" : ""}">${v(d.over)}</td>` : ""}
+        <td class="c-x">${d.excuseType ? `<span class="ok">${(T.dir === "rtl" ? short : shortEn)[d.excuseType] || "✓"}</span>` : ""}</td></tr>`;
+    const half = Math.ceil(r.details.length / 2);
+    const parts = r.details.length > 8 ? [r.details.slice(0, half), r.details.slice(half)] : [r.details];
+    return `<div class="split ${parts.length > 1 ? "two" : ""}">${parts.map((p) => `<table class="compact"><thead>${head}</thead><tbody>${p.map(row).join("")}</tbody></table>`).join("")}</div>
+      ${r.details.some((d) => d.excuseType) ? `<div class="sub">${T.dir === "rtl" ? "✓ = عذر مسجّل — التفاصيل في جدول التسجيلات والأعذار" : "✓ = registered excuse — see Registered Excuses below"}</div>` : ""}`;
+  }
+
   function reportHTML(r, lang) {
     const T = TX[lang], esc = window.APP.esc;
     const [, mm, yy] = fmtD(r.pTo).split("/");
@@ -585,12 +608,8 @@
         ${r.daily ? box(T.over, minToHM(r.totOver)) + box(T.net, `<span dir="ltr">${minToHM(r.totOver - r.totLate - r.totEarly)}</span>`, "hl") : box(T.deficit, minToHM(r.totLate + r.totEarly) + (r.excLate + r.excEarly ? ` <small>(${T.withExcuse} ${minToHM(r.excLate + r.excEarly)})</small>` : ""), "hl")}
       </div>
 
-      <h2>${T.secDetails}</h2>
-      ${table(
-        [T.day, T.date, T.first, T.last, ...(r.daily ? [T.worked] : []), T.late, T.early, ...(r.daily ? [T.over] : []), T.excuse],
-        r.details.map((d) => [T.days[dow(d.date)], fmtD(d.date), secToHM(d.first), secToHM(d.last), ...(r.daily ? [minToHM(d.worked)] : []),
-          minToHM(d.late), minToHM(d.early), ...(r.daily ? [minToHM(d.over)] : []), esc(d.excuse ? T.typeName(d.excuse.split(" — ")[0]) + (d.excuse.includes(" — ") ? " — " + d.excuse.split(" — ").slice(1).join(" — ") : "") : "—")])
-      )}
+      <h2>${T.secDetails} <span class="sub">(${r.details.length})</span></h2>
+      ${compactDetails(r, T)}
 
       <h2>${T.secAbs}</h2>
       ${table([T.day, T.date, T.type, T.reason], r.absences.map((a) => [T.days[dow(a.date)], fmtD(a.date), esc(T.typeName(a.type)), esc(a.reason || "—")]))}
@@ -638,6 +657,12 @@
       tr:nth-child(even) td { background: #f8fafc; }
       thead { display: table-header-group; } tr { break-inside: avoid; page-break-inside: avoid; }
       .none { color: #64748b; padding: 4px 2px; }
+      .split.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+      table.compact { table-layout: auto; }
+      table.compact th, table.compact td { padding: 2px 3px; font-size: 9px; white-space: nowrap; text-align: center; }
+      table.compact .c-d { text-align: start; } table.compact .c-x { width: 24px; }
+      table.compact td.red { color: #b91c1c; font-weight: 700; } table.compact td.green { color: #15803d; font-weight: 700; }
+      table.compact .ok { color: #15803d; font-weight: 700; }
       .signs { display: flex; gap: 30px; margin-top: 18px; break-inside: avoid; }
       .signs div { flex: 1; font-weight: 700; color: #334155; }
       .signs span { display: block; border-bottom: 1px solid #94a3b8; height: 24px; }
