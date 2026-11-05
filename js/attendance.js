@@ -215,13 +215,24 @@
     for (const d of details) {
       const rec = recFor(d.date, LATE_TYPES);
       d.excuse = rec ? rec.record_type + (rec.reason ? ` — ${rec.reason}` : "") : "";
+      d.excuseType = rec ? rec.record_type : "";
     }
-    const excuses = recs.filter((a) => LATE_TYPES.includes(a.record_type) && String(a.end_date || a.start_date).slice(0, 10) >= pFrom && String(a.start_date).slice(0, 10) <= pTo);
+    // التأخير/الخروج اللي ليه عذر مسجّل (بيتعرض لوحده — الإجمالي ما بيتغيرش)
+    const excLate = details.filter((d) => d.excuseType === "تأخير بعذر" || d.excuseType === "أخرى").reduce((t, d) => t + d.late, 0);
+    const excEarly = details.filter((d) => d.excuseType === "خروج مبكر بإذن" || d.excuseType === "أخرى").reduce((t, d) => t + d.early, 0);
+    const excuses = recs.filter((a) => LATE_TYPES.includes(a.record_type) && String(a.end_date || a.start_date).slice(0, 10) >= pFrom && String(a.start_date).slice(0, 10) <= pTo)
+      .map((a) => {
+        const s = String(a.start_date).slice(0, 10), e = String(a.end_date || a.start_date).slice(0, 10);
+        const useLate = a.record_type !== "خروج مبكر بإذن", useEarly = a.record_type !== "تأخير بعذر";
+        const mins = (d) => (useLate ? d.late : 0) + (useEarly ? d.early : 0);
+        const hits = details.filter((d) => d.date >= s && d.date <= e && mins(d) > 0);
+        return { ...a, matched: hits.length, matchedMin: hits.reduce((t, d) => t + mins(d), 0) };
+      });
 
     return {
       id, name, nameEn: emp.nameEn || "", dept, job: emp.job || "", nat: emp.nat || "",
       saudi, daily, satWork, pFrom, pTo, inEmployees: !!ctx.employees.get(id),
-      lateDays, totLate, earlyDays, totEarly, totOver,
+      lateDays, totLate, earlyDays, totEarly, totOver, excLate, excEarly,
       absences, excusedDays: absences.filter((a) => a.excused).length,
       leaveDays: leaveDays.sort((a, b) => a.date.localeCompare(b.date)),
       details, excuses,
@@ -276,17 +287,17 @@
 
     const fileInput = $("#att-file");
     const dz = $("#dropzone");
-    const run = async (file) => {
+    const run = async (file, silent = false) => {
       view.start = $("#att-start").value || R.DEFAULT_START;
       view.grace = $("#att-grace").value || 0;
       A.loading(true, "جاري قراءة ملف البصمة والحساب...");
       try {
         view.results = await processFile(file, view.start, view.grace);
         view.lastFile = file; view.fileName = file.name;
-        view.selected = view.results.length === 1 ? view.results[0].id : null;
+        if (!silent || !view.results.some((x) => x.id === view.selected)) view.selected = view.results.length === 1 ? view.results[0].id : (silent ? view.selected : null);
         $("#dz-title").textContent = file.name;
         $("#att-run").disabled = false;
-        A.toast(`✅ تم حساب ${view.results.length} موظف`, "ok");
+        if (!silent) A.toast(`✅ تم حساب ${view.results.length} موظف`, "ok");
       } catch (e) {
         A.toast("تعذّر قراءة الملف: " + A.errMsg(e), "bad");
       } finally {
@@ -299,7 +310,8 @@
     dz.addEventListener("dragleave", () => dz.classList.remove("over"));
     dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) run(f); });
     $("#att-run").addEventListener("click", () => view.lastFile && run(view.lastFile));
-    renderResults();
+    // لما ترجع للصفحة بعد تسجيل إجازة أو عذر، الحساب بيتعاد لوحده بأحدث بيانات
+    if (view.lastFile) run(view.lastFile, true); else renderResults();
   }
 
   function $(s, r = document) { return r.querySelector(s); }
@@ -336,7 +348,7 @@
             </div>
           </div>
           <div class="table-wrap"><table class="grid view-grid">
-            <thead><tr><th>الرقم</th><th>الاسم</th><th>القسم</th><th>أيام التأخير</th><th>إجمالي التأخير</th><th>أيام الخروج المبكر</th><th>إجمالي الخروج</th><th>غياب بإذن</th><th>غياب بدون إذن</th><th>إجازات</th><th></th></tr></thead>
+            <thead><tr><th>الرقم</th><th>الاسم</th><th>القسم</th><th>أيام التأخير</th><th>إجمالي التأخير</th><th>أيام الخروج المبكر</th><th>إجمالي الخروج</th><th>منها بعذر</th><th>غياب بإذن</th><th>غياب بدون إذن</th><th>إجازات</th><th></th></tr></thead>
             <tbody id="sum-body"></tbody>
           </table></div>
         </div>`;
@@ -353,6 +365,7 @@
             <td class="num">${esc(r.id)}</td><td><b>${esc(r.name || "—")}</b>${r.inEmployees ? "" : ' <span class="tag warn-tag">غير مسجل</span>'}</td><td class="muted">${esc(r.dept)}</td>
             <td class="num">${r.lateDays}</td><td class="num">${minToHM(r.totLate)}</td>
             <td class="num">${r.earlyDays}</td><td class="num">${minToHM(r.totEarly)}</td>
+            <td class="num ${r.excLate + r.excEarly ? "txt-ok" : ""}">${minToHM(r.excLate + r.excEarly)}</td>
             <td class="num">${r.excusedDays}</td><td class="num ${r.absences.length - r.excusedDays ? "txt-bad" : ""}">${r.absences.length - r.excusedDays}</td>
             <td class="num">${r.leaveDays.length}</td>
             <td><button class="btn btn-sm show-emp">عرض</button></td>
@@ -393,7 +406,9 @@
           <div class="muted">الصافي = الإضافي (${minToHM(r.totOver)}) − (التأخير ${minToHM(r.totLate)} + الخروج المبكر ${minToHM(r.totEarly)})</div></div>`
       : `<div class="net-box"><div class="net-title">🧾 ملخص الاحتساب</div>
           <div class="net-big txt-bad">إجمالي التأخيرات: ${minToHM(deficit)}</div>
-          <div class="muted">التأخير ${minToHM(r.totLate)} + الخروج المبكر ${minToHM(r.totEarly)}</div></div>`;
+          <div class="muted">التأخير ${minToHM(r.totLate)} + الخروج المبكر ${minToHM(r.totEarly)}</div>
+          ${r.excLate + r.excEarly ? `<div class="net-row-x"><span class="tag ok-tag">✅ منها بعذر مسجّل: ${minToHM(r.excLate + r.excEarly)}</span>
+            <span class="tag bad-tag">🚫 بدون عذر: ${minToHM(deficit - r.excLate - r.excEarly)}</span></div>` : ""}</div>`;
 
     const detailRows = r.details.map((d) => `<tr>
         <td>${DAY_AR[dow(d.date)]}</td><td class="num">${fmtD(d.date)}</td>
@@ -443,12 +458,20 @@
           <div class="tabs">
             <button class="tab active" data-tab="details">🧾 التفاصيل اليومية (${r.details.length})</button>
             <button class="tab" data-tab="abs">🚫 الغياب والإجازات (${r.absences.length + r.leaveDays.length})</button>
+            <button class="tab" data-tab="exc">📝 أعذار التأخير المسجّلة (${r.excuses.length})</button>
           </div>
           <div data-pane="details">
             ${r.details.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr>
               <th>اليوم</th><th>التاريخ</th><th>أول بصمة</th><th>آخر بصمة</th>${r.daily ? "<th>ساعات العمل</th>" : ""}
               <th>التأخير</th><th>الخروج المبكر</th>${r.daily ? "<th>الإضافي</th>" : ""}<th>العذر</th>
             </tr></thead><tbody>${detailRows}</tbody></table></div>` : `<div class="ok-box">لا يوجد تأخير أو خروج مبكر ✅</div>`}
+          </div>
+          <div data-pane="exc" hidden>
+            ${r.excuses.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr><th>رقم السجل</th><th>من</th><th>إلى</th><th>النوع</th><th>السبب</th><th>انعكس على</th></tr></thead><tbody>
+              ${r.excuses.map((x) => `<tr><td class="num">${esc(x.record_id || "")}</td><td class="num">${fmtD(String(x.start_date).slice(0, 10))}</td><td class="num">${fmtD(String(x.end_date || x.start_date).slice(0, 10))}</td>
+                <td><span class="tag">${esc(x.record_type)}</span></td><td>${esc(x.reason || "—")}</td>
+                <td>${x.matched ? `<span class="tag ok-tag">${x.matched} يوم — ${minToHM(x.matchedMin)}</span>` : '<span class="tag warn-tag">مفيش تأخير أو خروج مبكر في الأيام دي</span>'}</td></tr>`).join("")}
+            </tbody></table></div>` : `<div class="muted">لا توجد أعذار مسجّلة لهذا الموظف في الفترة ${fmtD(r.pFrom)} → ${fmtD(r.pTo)}. سجّلها من صفحة <a href="#absences">⏰ الغياب والتأخير</a>.</div>`}
           </div>
           <div data-pane="abs" hidden>
             <div class="two-col">
@@ -479,6 +502,7 @@
       "الرقم الوظيفي": r.id, "الاسم": r.name, "القسم": r.dept, "الفترة من": r.pFrom, "الفترة إلى": r.pTo,
       "أيام التأخير": r.lateDays, "إجمالي التأخير (دقيقة)": r.totLate, "إجمالي التأخير": minToHM(r.totLate),
       "أيام الخروج المبكر": r.earlyDays, "إجمالي الخروج المبكر (دقيقة)": r.totEarly, "إجمالي الخروج المبكر": minToHM(r.totEarly),
+      "منها بعذر (دقيقة)": r.excLate + r.excEarly,
       "الإضافي (دقيقة)": r.totOver, "أيام الغياب": r.absences.length, "غياب بإذن": r.excusedDays,
       "غياب بدون إذن": r.absences.length - r.excusedDays, "إجازات معتمدة": r.leaveDays.length,
       "طريقة الاحتساب": r.daily ? "ساعات يومية" : "عادي",
@@ -498,7 +522,7 @@
       job: "الوظيفة", nat: "الجنسية", sched: "أيام الإجازة", schedFri: "الجمعة فقط", schedFriSat: "الجمعة والسبت", rule: "طريقة الاحتساب",
       ruleDaily: "ساعات يومية (مستثنى)", ruleNormal: "عادي", lateDays: "أيام التأخير", totLate: "إجمالي التأخير", earlyDays: "أيام الخروج المبكر",
       totEarly: "إجمالي الخروج المبكر", absDays: "أيام الغياب", excused: "بإذن", unexcused: "بدون إذن", leaves: "إجازات معتمدة",
-      deficit: "إجمالي التأخيرات", over: "الإضافي", net: "الصافي", secDetails: "التأخير والخروج المبكر", secAbs: "الغياب", secExc: "أعذار التأخير والخروج المبكر",
+      deficit: "إجمالي التأخيرات", withExcuse: "منها بعذر", over: "الإضافي", net: "الصافي", secDetails: "التأخير والخروج المبكر", secAbs: "الغياب", secExc: "أعذار التأخير والخروج المبكر",
       secLeaves: "الإجازات المعتمدة", day: "اليوم", date: "التاريخ", first: "أول بصمة", last: "آخر بصمة", worked: "ساعات العمل", late: "التأخير",
       early: "الخروج المبكر", excuse: "العذر", type: "النوع", reason: "السبب", from: "من", to: "إلى", none: "لا يوجد",
       printed: "تاريخ الطباعة", empSign: "توقيع الموظف", mgrSign: "توقيع المدير المباشر", days: DAY_AR,
@@ -509,7 +533,7 @@
       job: "Job Title", nat: "Nationality", sched: "Weekend", schedFri: "Friday only", schedFriSat: "Friday & Saturday", rule: "Calculation",
       ruleDaily: "Daily hours (exempt)", ruleNormal: "Standard", lateDays: "Late Days", totLate: "Total Late", earlyDays: "Early Leave Days",
       totEarly: "Total Early Leave", absDays: "Absent Days", excused: "Excused", unexcused: "Unexcused", leaves: "Approved Leave Days",
-      deficit: "Total Deficit", over: "Overtime", net: "Net", secDetails: "Late Arrival & Early Leave", secAbs: "Absences", secExc: "Late / Early Leave Excuses",
+      deficit: "Total Deficit", withExcuse: "excused", over: "Overtime", net: "Net", secDetails: "Late Arrival & Early Leave", secAbs: "Absences", secExc: "Late / Early Leave Excuses",
       secLeaves: "Approved Leaves", day: "Day", date: "Date", first: "First In", last: "Last Out", worked: "Worked", late: "Late",
       early: "Early Leave", excuse: "Excuse", type: "Type", reason: "Reason", from: "From", to: "To", none: "None",
       printed: "Printed on", empSign: "Employee Signature", mgrSign: "Line Manager Signature", days: DAY_EN,
@@ -548,7 +572,7 @@
       <div class="boxes">
         ${box(T.lateDays, r.lateDays)}${box(T.totLate, minToHM(r.totLate))}${box(T.earlyDays, r.earlyDays)}${box(T.totEarly, minToHM(r.totEarly))}
         ${box(T.absDays, `${r.absences.length} <small>(${T.excused} ${r.excusedDays} · ${T.unexcused} ${unexcused})</small>`)}${box(T.leaves, r.leaveDays.length)}
-        ${r.daily ? box(T.over, minToHM(r.totOver)) + box(T.net, `<span dir="ltr">${minToHM(r.totOver - r.totLate - r.totEarly)}</span>`, "hl") : box(T.deficit, minToHM(r.totLate + r.totEarly), "hl")}
+        ${r.daily ? box(T.over, minToHM(r.totOver)) + box(T.net, `<span dir="ltr">${minToHM(r.totOver - r.totLate - r.totEarly)}</span>`, "hl") : box(T.deficit, minToHM(r.totLate + r.totEarly) + (r.excLate + r.excEarly ? ` <small>(${T.withExcuse} ${minToHM(r.excLate + r.excEarly)})</small>` : ""), "hl")}
       </div>
 
       <h2>${T.secDetails}</h2>

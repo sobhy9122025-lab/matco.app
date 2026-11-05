@@ -260,3 +260,4 @@ tr.row-selected td { background: var(--primary-soft) !important; }
 .settings-side { display: flex; flex-direction: column; justify-content: center; gap: 12px; background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
 .preview-list { display: flex; flex-direction: column; gap: 4px; }
 .small-list { font-size: 12px; margin-top: 2px; }
+.net-row-x { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
