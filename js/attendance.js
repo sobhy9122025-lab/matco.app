@@ -373,7 +373,7 @@
     if (many) {
       const fill = () => {
         const q = ($("#sum-q").value || "").trim().toLowerCase();
-        $("#sum-body").innerHTML = view.results.filter((r) => !q || `${r.id} ${r.name}`.toLowerCase().includes(q)).map((r) => `
+        $("#sum-body").innerHTML = view.results.filter((r) => !q || `${r.id} ${r.name} ${(window.APP.state.employees.get(r.id) || {}).nid || ""}`.toLowerCase().includes(q)).map((r) => `
           <tr data-id="${esc(r.id)}" class="${r.id === view.selected ? "row-selected" : ""}">
             <td class="num">${esc(r.id)}</td><td class="nm"><b>${esc(r.name || "—")}</b>${r.inEmployees ? "" : ' <span class="tag warn-tag">غير مسجل</span>'}</td><td class="muted">${esc(r.dept)}</td>
             <td class="num">${r.lateDays}</td><td class="num">${minToHM(r.totLate)}</td>

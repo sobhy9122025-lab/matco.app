@@ -403,3 +403,9 @@ td.actions > .btn { margin: 2px; }
 @media (max-width: 980px) {
   .rep-side { display: flex; }
 }
+/* إضافة موظف واحد + القالب */
+.one-emp { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.one-emp-actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+@media (max-width: 1000px) { .one-emp { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .one-emp { grid-template-columns: 1fr; } }
+.tpl-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }

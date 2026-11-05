@@ -75,7 +75,7 @@
       other: Object.entries(p.types).filter(([t]) => !MAIN_TYPES.includes(t)).reduce((s, [, v]) => s + v, 0) }));
     const depts = [...new Set(list.map((p) => p.dept).filter(Boolean))].sort();
     if (view.dept && !ignoreFilters) list = list.filter((p) => p.dept === view.dept);
-    if (view.q && !ignoreFilters) { const q = view.q.toLowerCase(); list = list.filter((p) => `${p.id} ${p.name}`.toLowerCase().includes(q)); }
+    if (view.q && !ignoreFilters) { const q = view.q.toLowerCase(); list = list.filter((p) => `${p.id} ${p.name} ${(emps.get(p.id) || {}).nid || ""}`.toLowerCase().includes(q)); }
     return { list, depts };
   }
 
@@ -99,7 +99,7 @@
           <label>من تاريخ <input type="date" id="r-from" value="${view.from}"></label>
           <label>إلى تاريخ <input type="date" id="r-to" value="${view.to}"></label>
           <label>القسم <select id="r-dept"></select></label>
-          <label>🔎 بحث بالاسم أو الرقم <input type="search" id="r-q" value="${esc(view.q)}" placeholder="مثال: 27164 أو محمد"></label>
+          <label>🔎 بحث بالاسم أو الرقم أو الهوية <input type="search" id="r-q" value="${esc(view.q)}" placeholder="مثال: 27164 أو محمد"></label>
         </div>
         <div class="tabs" id="r-tabs">
           <button class="tab" data-t="totals">👥 إجماليات الموظفين</button>
@@ -214,7 +214,7 @@
         <div class="emp-hero card" style="margin-top:12px">
           <div><div class="muted">تقرير الموظف — ${fmtD(view.from)} → ${fmtD(view.to)}</div>
             <div class="emp-name">👤 ${esc(info.name || "—")}</div>
-            <div class="emp-meta"><span class="tag">الرقم الوظيفي: ${esc(info.id)}</span>${info.dept ? `<span class="tag">${esc(info.dept)}</span>` : ""}${(info.job || e.job) ? `<span class="tag">${esc(info.job || e.job)}</span>` : ""}<span class="tag ${cls}-tag">${st}</span></div></div>
+            <div class="emp-meta"><span class="tag">الرقم الوظيفي: ${esc(info.id)}</span>${e.nid ? `<span class="tag">الهوية: ${esc(e.nid)}</span>` : ""}${info.dept ? `<span class="tag">${esc(info.dept)}</span>` : ""}${(info.job || e.job) ? `<span class="tag">${esc(info.job || e.job)}</span>` : ""}<span class="tag ${cls}-tag">${st}</span></div></div>
           <div class="emp-actions"><button class="btn btn-primary" id="e-pdf">🖨️ PDF</button><button class="btn" id="e-xlsx">📥 Excel</button></div>
         </div>
         <div class="kpis" style="margin-top:12px">

@@ -36,23 +36,58 @@
   const findSheet = (sheets, test) => Object.entries(sheets).find(([, rows]) => rows.length && test(Object.keys(rows[0])));
 
   // ---------------- الموظفين ----------------
+  // "ساعات يومية" (المستثنى) تُحفظ daily_hours، وأي قيمة أخرى = احتساب عادي
+  function normRule(v) {
+    const s = String(v ?? "").trim().toLowerCase();
+    return ["ساعات يومية", "مستثنى", "استثناء", "daily_hours", "daily hours", "hours", "exempt"].includes(s) ? "daily_hours" : null;
+  }
+
+  const TEMPLATE_HEADERS = ["الرقم الوظيفي", "الاسم العربي", "الاسم الإنجليزي", "رقم الهوية / الإقامة", "القسم", "الوظيفة", "الجنسية", "طريقة الاحتساب"];
+
+  function downloadTemplate(rows, fileName) {
+    const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, ...rows]);
+    ws["!cols"] = [{ wch: 14 }, { wch: 32 }, { wch: 30 }, { wch: 18 }, { wch: 24 }, { wch: 28 }, { wch: 14 }, { wch: 16 }];
+    const help = XLSX.utils.aoa_to_sheet([
+      ["العمود", "إلزامي؟", "الوصف"],
+      ["الرقم الوظيفي", "نعم", "رقم الموظف كما يظهر في ملف البصمة (Employee ID). لا يتكرر."],
+      ["الاسم العربي", "نعم", "يظهر في التقارير وملفات PDF."],
+      ["الاسم الإنجليزي", "لا", "يظهر في تقرير PDF الإنجليزي."],
+      ["رقم الهوية / الإقامة", "يُفضَّل", "للبحث عن الموظف برقم الهوية (مثل التقارير الطبية). لا يظهر في التقارير المطبوعة. اكتبه كنص حتى لا يتحول إلى صيغة علمية."],
+      ["القسم", "يُفضَّل", "يُستخدم في فلاتر التقارير وإجماليات الأقسام. اكتبه بالصيغة نفسها لكل موظفي القسم."],
+      ["الوظيفة", "لا", "المسمى الوظيفي."],
+      ["الجنسية", "نعم", "مهمة للاحتساب: غير السعودي الذي يبصم يوم السبت يُعدّ السبت يوم عمل له. اكتب Saudi أو سعودي للسعودي."],
+      ["طريقة الاحتساب", "لا", "اتركها فارغة للاحتساب العادي، أو اكتب «ساعات يومية» للموظف المستثنى (يُحسب له الإضافي والصافي)."],
+      [],
+      ["مثال", "", "33120 | محمد أحمد علي | Mohamed Ahmed Ali | 2412345678 | | Accounting | محاسب | Egyptian | (فارغ = عادي)"],
+      ["ملاحظات", "", "الموظف الموجود تُحدَّث بياناته، والجديد يُضاف، ولا يُحذف أحد. لا تضف الآيبان ولا بيانات شخصية أخرى."],
+    ]);
+    help["!cols"] = [{ wch: 16 }, { wch: 10 }, { wch: 95 }];
+    const wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(wb, ws, "الموظفون");
+    XLSX.utils.book_append_sheet(wb, help, "التعليمات");
+    XLSX.writeFile(wb, fileName);
+  }
+
   function parseEmployees(sheets) {
-    const hit = findSheet(sheets, (k) => k.includes("Personnel Number"))
+    const hit = findSheet(sheets, (k) => k.includes("الرقم الوظيفي") && k.includes("الاسم العربي"))
+      || findSheet(sheets, (k) => k.includes("Personnel Number"))
       || findSheet(sheets, (k) => k.includes("employee_id") && !k.includes("start_date") && (k.includes("name_ar") || k.includes("Arabic name")));
-    if (!hit) throw new Error("لم يتم العثور على ورقة تحتوي على عمود Personnel Number (أو employee_id)");
+    if (!hit) throw new Error("لم يتم العثور على ورقة موظفين — استخدم زر «تنزيل قالب الموظفين» وارفع الملف بعد تعبئته");
     const [sheetName, rows] = hit;
     const map = new Map();
     for (const r of rows) {
-      const id = clean(pick(r, "Personnel Number", "employee_id"));
+      const id = clean(pick(r, "الرقم الوظيفي", "Personnel Number", "employee_id"));
       if (!id) continue;
       map.set(id, {
         employee_id: id,
-        name_ar: text(pick(r, "Arabic name", "name_ar")),
-        name_en: text(pick(r, "Search name", "Name", "name_en")),
-        department: text(pick(r, "Section | Department", "department")),
-        job_title: text(pick(r, "Contrac Profession", "job_title")),
-        nationality: text(pick(r, "Nationality", "nationality")),
-        attendance_calculation: text(pick(r, "attendance_calculation", "Attendance Calculation")),
+        name_ar: text(pick(r, "الاسم العربي", "Arabic name", "name_ar")),
+        name_en: text(pick(r, "الاسم الإنجليزي", "Search name", "Name", "name_en")),
+        national_id: clean(pick(r, "رقم الهوية / الإقامة", "رقم الهوية", "National ID", "national_id", "Border No")) || null,
+        department: text(pick(r, "القسم", "Section | Department", "department")),
+        job_title: text(pick(r, "الوظيفة", "Contrac Profession", "job_title")),
+        nationality: text(pick(r, "الجنسية", "Nationality", "nationality")),
+        attendance_calculation: normRule(pick(r, "طريقة الاحتساب", "attendance_calculation", "Attendance Calculation")),
       });
     }
     return { sheetName, rows: [...map.values()] };
@@ -153,9 +188,30 @@
       </div>
 
       <div class="card">
-        <div class="card-title">👥 رفع ملف الموظفين</div>
-        <p class="muted" style="margin-top:-6px">ملف Excel يحتوي على عمود <b>Personnel Number</b>. تُحدَّث بيانات الموظف الموجود، ويُضاف الموظف الجديد، ولا يُحذف أي موظف.
-          تُحفظ البيانات التالية فقط: الرقم الوظيفي، والاسم العربي والإنجليزي، والقسم، والوظيفة، والجنسية، وطريقة الاحتساب — <b>لا يُرفع رقم الهوية ولا الآيبان ولا أي بيانات شخصية أخرى</b>.</p>
+        <div class="card-title">👤 إضافة موظف أو تعديل بياناته</div>
+        <p class="muted" style="margin-top:-6px">الأنسب عند تعيين موظف أو موظفين جدد. اكتب الرقم الوظيفي: إذا كان الموظف موجودًا تظهر بياناته لتعديلها، وإلا يُضاف موظفًا جديدًا.</p>
+        <form id="one-emp" class="one-emp">
+          <label>الرقم الوظيفي * <input id="oe-id" required inputmode="numeric" placeholder="مثال: 33120"></label>
+          <label>الاسم العربي * <input id="oe-ar" required></label>
+          <label>الاسم الإنجليزي <input id="oe-en" dir="ltr"></label>
+          <label>رقم الهوية / الإقامة <input id="oe-nid" inputmode="numeric" dir="ltr"></label>
+          <label>القسم <input id="oe-dept" list="dept-list" placeholder="اختر من القائمة أو اكتب"></label>
+          <label>الوظيفة <input id="oe-job"></label>
+          <label>الجنسية * <input id="oe-nat" list="nat-list" required placeholder="Saudi / Egyptian ..."></label>
+          <label>طريقة الاحتساب <select id="oe-rule"><option value="">عادي</option><option value="daily_hours">ساعات يومية (مستثنى)</option></select></label>
+          <div class="one-emp-actions"><span id="oe-state" class="tag">جديد</span><button class="btn btn-primary" type="submit" id="oe-save">💾 حفظ الموظف</button></div>
+        </form>
+        <datalist id="dept-list"></datalist><datalist id="nat-list"></datalist>
+      </div>
+
+      <div class="card">
+        <div class="card-title">👥 رفع ملف الموظفين (عدد كبير)</div>
+        <div class="tpl-actions">
+          <button class="btn" type="button" id="tpl-empty">📄 تنزيل قالب الموظفين (فارغ)</button>
+          <button class="btn" type="button" id="tpl-current">📥 تنزيل الموظفين الحاليين بنفس القالب</button>
+        </div>
+        <p class="muted">املأ القالب ثم ارفعه هنا (ويُقبل كذلك ملف الموظفين الأصلي الذي فيه عمود <b>Personnel Number</b>). تُحدَّث بيانات الموظف الموجود، ويُضاف الموظف الجديد، ولا يُحذف أي موظف.
+          تُحفظ البيانات التالية فقط: الرقم الوظيفي، والاسم العربي والإنجليزي، ورقم الهوية / الإقامة، والقسم، والوظيفة، والجنسية، وطريقة الاحتساب — <b>لا يُرفع الآيبان ولا أي بيانات شخصية أخرى</b>.</p>
         <div class="settings-row">
           <label class="dropzone small" id="emp-dz"><input type="file" id="emp-file" accept=".xlsx,.xls" hidden>
             <div class="dz-icon">👥</div><div class="dz-title" id="emp-dz-title">اختر ملف الموظفين</div></label>
@@ -255,6 +311,48 @@
     });
     loadUsers();
 
+    // ---------- القالب ----------
+    const empRows = () => [...A.state.employees.values()].sort((a, b) => +a.id - +b.id || a.id.localeCompare(b.id))
+      .map((e) => [e.id, e.name, e.nameEn, e.nid || "", e.dept, e.job, e.nat, e.rule === "daily_hours" ? "ساعات يومية" : ""]);
+    $("#tpl-empty").addEventListener("click", () => downloadTemplate([], "قالب_الموظفين.xlsx"));
+    $("#tpl-current").addEventListener("click", () => downloadTemplate(empRows(), `الموظفون_${new Date().toISOString().slice(0, 10)}.xlsx`));
+
+    // ---------- موظف واحد ----------
+    const uniq = (k) => [...new Set([...A.state.employees.values()].map((e) => e[k]).filter(Boolean))].sort();
+    $("#dept-list").innerHTML = uniq("dept").map((d) => `<option value="${esc(d)}">`).join("");
+    $("#nat-list").innerHTML = uniq("nat").map((d) => `<option value="${esc(d)}">`).join("");
+    const fill = () => {
+      const e = A.state.employees.get(A.cleanId($("#oe-id").value));
+      $("#oe-state").textContent = e ? "موجود — سيتم التعديل" : "جديد";
+      $("#oe-state").className = "tag " + (e ? "warn-tag" : "ok-tag");
+      if (e) {
+        $("#oe-ar").value = e.name || ""; $("#oe-en").value = e.nameEn || ""; $("#oe-nid").value = e.nid || ""; $("#oe-dept").value = e.dept || "";
+        $("#oe-job").value = e.job || ""; $("#oe-nat").value = e.nat || ""; $("#oe-rule").value = e.rule === "daily_hours" ? "daily_hours" : "";
+      }
+    };
+    $("#oe-id").addEventListener("change", fill);
+    $("#oe-id").addEventListener("input", () => { if (A.state.employees.has(A.cleanId($("#oe-id").value))) fill(); else { $("#oe-state").textContent = "جديد"; $("#oe-state").className = "tag ok-tag"; } });
+    $("#one-emp").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const id = A.cleanId($("#oe-id").value);
+      if (!/^[0-9A-Za-z-]+$/.test(id)) return A.toast("الرقم الوظيفي غير صالح", "bad");
+      const row = {
+        employee_id: id, name_ar: $("#oe-ar").value.trim() || null, name_en: $("#oe-en").value.trim() || null,
+        national_id: A.cleanId($("#oe-nid").value) || null,
+        department: $("#oe-dept").value.trim() || null, job_title: $("#oe-job").value.trim() || null,
+        nationality: $("#oe-nat").value.trim() || null, attendance_calculation: $("#oe-rule").value || null,
+      };
+      const existed = A.state.employees.has(id);
+      $("#oe-save").disabled = true;
+      try {
+        await A.DB.upsert("employees", [row], "employee_id");
+        await A.reloadEmployees();
+        A.toast(existed ? `✅ تم تعديل بيانات ${row.name_ar}` : `✅ تمت إضافة الموظف ${row.name_ar}`, "ok");
+        $("#one-emp").reset(); $("#oe-state").textContent = "جديد"; $("#oe-state").className = "tag ok-tag";
+      } catch (e) { A.toast("تعذّر الحفظ: " + A.errMsg(e) + (/national_id/.test(A.errMsg(e)) ? " — شغّل ملف database/5_national_id.sql في Supabase أولًا" : ""), "bad"); }
+      $("#oe-save").disabled = false;
+    });
+
     // ---------- الموظفين ----------
     const empFile = $("#emp-file");
     empFile.addEventListener("change", async () => {
@@ -279,7 +377,11 @@
     });
 
     async function uploadEmployees() {
-      const rows = view.emp.rows;
+      // رقم الهوية الفارغ في الملف لا يمسح الرقم المحفوظ مسبقًا
+      const rows = view.emp.rows.map((r) => {
+        const old = A.state.employees.get(r.employee_id);
+        return !r.national_id && old && old.nid ? { ...r, national_id: old.nid } : r;
+      });
       $("#emp-go").disabled = true;
       try {
         for (let i = 0; i < rows.length; i += 500) {
@@ -291,7 +393,7 @@
         view.emp = null;
         render(root);
       } catch (e) {
-        A.toast("تعذّر رفع الموظفين: " + A.errMsg(e), "bad");
+        A.toast("تعذّر رفع الموظفين: " + A.errMsg(e) + (/national_id/.test(A.errMsg(e)) ? " — شغّل ملف database/5_national_id.sql في Supabase أولًا" : ""), "bad");
         $("#emp-go").disabled = false;
       } finally { A.loading(false); }
     }

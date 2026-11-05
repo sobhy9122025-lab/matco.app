@@ -100,7 +100,10 @@
       async session() { return check(await sb.auth.getSession()).session; },
       async signIn(email, password) { return check(await sb.auth.signInWithPassword({ email, password })).user; },
       async signOut() { await sb.auth.signOut(); },
-      employees: () => fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation"),
+      async employees() {
+        try { return await fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation,national_id"); }
+        catch (_) { return fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation"); } // قبل إضافة عمود الهوية
+      },
       all: (table) => fetchAll(table),
       async insert(table, rows) { return check(await sb.from(table).insert(rows).select()); },
       async upsert(table, rows, onConflict) { check(await sb.from(table).upsert(rows, { onConflict })); },
@@ -157,9 +160,9 @@
     for (const r of rows) {
       const id = cleanId(r.employee_id);
       if (!id) continue;
-      const e = { id, name: r.name_ar || r.name_en || "", nameEn: r.name_en || "", dept: r.department || "", job: r.job_title || "", nat: r.nationality || "", rule: r.attendance_calculation || "" };
+      const e = { id, name: r.name_ar || r.name_en || "", nameEn: r.name_en || "", dept: r.department || "", job: r.job_title || "", nat: r.nationality || "", rule: r.attendance_calculation || "", nid: cleanId(r.national_id) };
       state.employees.set(id, e);
-      state.empList.push({ ...e, hay: `${e.name} ${e.nameEn} ${id}`.toLowerCase() });
+      state.empList.push({ ...e, hay: `${e.name} ${e.nameEn} ${id} ${e.nid}`.toLowerCase() });
     }
   }
 
@@ -288,36 +291,36 @@
   function employeeCombo(container, onPick) {
     container.classList.add("combo");
     container.innerHTML = `
-      <label>🔎 الموظف (اكتب الاسم أو الرقم الوظيفي)
-        <input type="search" class="combo-input" placeholder="مثال: 27164 أو محمد" autocomplete="off">
+      <label>🔎 الموظف (الاسم أو الرقم الوظيفي أو رقم الهوية)
+        <input type="search" class="combo-input" placeholder="مثال: 27164 أو محمد أو 1026241339" autocomplete="off">
       </label>
       <div class="combo-list" hidden></div>
       <div class="combo-picked" hidden></div>`;
     const input = $(".combo-input", container);
     const list = $(".combo-list", container);
     const picked = $(".combo-picked", container);
-    let items = [], active = -1, value = null;
+    let items = [], active = -1, value = null, q = "";
 
     const close = () => { list.hidden = true; active = -1; };
     const choose = (emp) => {
       value = emp;
       input.value = `${emp.name} — ${emp.id}`;
-      picked.textContent = `✓ ${emp.name} | ${emp.dept || "—"} | ${emp.job || ""}`;
+      picked.textContent = `✓ ${emp.name} | ${emp.dept || "—"} | ${emp.job || ""}${emp.nid ? " | هوية " + emp.nid : ""}`;
       picked.hidden = false;
       close();
       onPick && onPick(emp);
     };
     const renderList = () => {
       list.innerHTML = items.map((e, i) =>
-        `<div class="combo-item ${i === active ? "active" : ""}" data-i="${i}"><span>${esc(e.name)}</span><span class="id">${esc(e.id)}</span></div>`
+        `<div class="combo-item ${i === active ? "active" : ""}" data-i="${i}"><span>${esc(e.name)}${e.nid && q.length >= 4 && e.nid.includes(q) ? ` <small class="muted">هوية ${esc(e.nid)}</small>` : ""}</span><span class="id">${esc(e.id)}</span></div>`
       ).join("") || `<div class="combo-item muted">لا توجد نتائج</div>`;
       list.hidden = false;
     };
     input.addEventListener("input", () => {
       value = null; picked.hidden = true;
-      const q = input.value.trim().toLowerCase();
+      q = input.value.trim().toLowerCase();
       if (!q) { close(); return; }
-      const exact = state.employees.get(cleanId(q));
+      const exact = state.employees.get(cleanId(q)) || state.empList.find((e) => e.nid && e.nid === cleanId(q));
       items = state.empList.filter((e) => e.hay.includes(q)).slice(0, 30);
       if (exact && !items.some((e) => e.id === exact.id)) items.unshift(exact);
       active = items.length ? 0 : -1;
@@ -436,7 +439,7 @@
         <div class="filters">
           <label>من تاريخ <input type="date" id="f-from" value="${ui.from}"></label>
           <label>إلى تاريخ <input type="date" id="f-to" value="${ui.to}"></label>
-          <label>🔎 بحث بالاسم أو الرقم الوظيفي <input type="search" id="f-q" value="${esc(ui.q)}" placeholder="مثال: 27164 أو محمد"></label>
+          <label>🔎 بحث بالاسم أو الرقم الوظيفي أو الهوية <input type="search" id="f-q" value="${esc(ui.q)}" placeholder="مثال: 27164 أو محمد"></label>
           <label>النوع <select id="f-type"><option value="">كل الأنواع</option>${k.types.map((t) => `<option ${t === ui.type ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>
           <button class="btn" id="export-btn" type="button">📥 تصدير Excel</button>
         </div>
@@ -658,7 +661,7 @@
       if (ui.type && r.cur.type !== ui.type) return false;
       if (q) {
         const emp = state.employees.get(r.cur.employee_id);
-        const hay = `${r.cur.employee_id} ${emp ? emp.name : r.name} ${r.id}`.toLowerCase();
+        const hay = `${r.cur.employee_id} ${emp ? emp.name : r.name} ${emp ? emp.nid : ""} ${r.id}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
