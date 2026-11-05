@@ -247,7 +247,7 @@
           <div class="boxes">${kp.map(([l, v]) => `<div class="box"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join("")}</div>
           <h2>الإجازات</h2>${leaves.length ? `<table><thead><tr><th>رقم</th><th>النوع</th><th>من</th><th>إلى</th><th>الأيام</th><th>ملاحظات</th></tr></thead><tbody>${leaves.map((l) => `<tr><td>${esc(l.leave_id)}</td><td>${esc(l.leave_type)}</td><td>${fmtD(iso(l.start_date))}</td><td>${fmtD(iso(l.end_date))}</td><td>${l.days}</td><td>${esc(l.notes || "")}</td></tr>`).join("")}</tbody></table>` : `<div class="none">لا يوجد</div>`}
           <h2>الغياب والتأخير</h2>${regs.length ? `<table><thead><tr><th>رقم</th><th>النوع</th><th>من</th><th>إلى</th><th>السبب</th></tr></thead><tbody>${regs.map((a) => `<tr><td>${esc(a.record_id)}</td><td>${esc(a.record_type)}</td><td>${fmtD(iso(a.start_date))}</td><td>${fmtD(iso(a.end_date))}</td><td>${esc(a.reason || "")}</td></tr>`).join("")}</tbody></table>` : `<div class="none">لا يوجد</div>`}
-          <div class="signs"><div>توقيع الموظف<span></span></div><div>توقيع المدير المباشر<span></span></div></div>`);
+          <div class="recs"><b>توصيات المدير المباشر</b><i></i><i></i><i></i></div><div class="signs"><div>توقيع الموظف<span></span></div><div>توقيع المدير المباشر<span></span></div></div>`);
         window.PRINT.openPrintWindow(body, "ar", `${info.name || info.id} — تقرير الموظف`);
       });
     }

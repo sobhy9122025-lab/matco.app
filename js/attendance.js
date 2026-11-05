@@ -541,7 +541,7 @@
       deficit: "إجمالي التأخيرات", withExcuse: "منها بعذر", over: "الإضافي", net: "الصافي", secDetails: "التأخير والخروج المبكر", secAbs: "الغياب", secExc: "التسجيلات والأعذار", effect: "الأثر",
       secLeaves: "الإجازات المعتمدة", day: "اليوم", date: "التاريخ", first: "أول بصمة", last: "آخر بصمة", worked: "ساعات العمل", late: "التأخير",
       early: "الخروج المبكر", excuse: "العذر", type: "النوع", reason: "السبب", from: "من", to: "إلى", none: "لا يوجد",
-      printed: "تاريخ الطباعة", empSign: "توقيع الموظف", mgrSign: "توقيع المدير المباشر", days: DAY_AR,
+      printed: "تاريخ الطباعة", empSign: "توقيع الموظف", mgrSign: "توقيع المدير المباشر", mgrRec: "توصيات المدير المباشر", days: DAY_AR,
       typeName: (t) => t,
     },
     en: {
@@ -552,7 +552,7 @@
       deficit: "Total Deficit", withExcuse: "excused", over: "Overtime", net: "Net", secDetails: "Late Arrival & Early Leave", secAbs: "Absences", secExc: "Registered Excuses", effect: "Effect",
       secLeaves: "Approved Leaves", day: "Day", date: "Date", first: "First In", last: "Last Out", worked: "Worked", late: "Late",
       early: "Early Leave", excuse: "Excuse", type: "Type", reason: "Reason", from: "From", to: "To", none: "None",
-      printed: "Printed on", empSign: "Employee Signature", mgrSign: "Line Manager Signature", days: DAY_EN,
+      printed: "Printed on", empSign: "Employee Signature", mgrSign: "Line Manager Signature", mgrRec: "Line Manager Recommendations", days: DAY_EN,
       typeName: (t) => ({
         "غياب بإذن": "Excused absence", "غياب بدون إذن": "Unexcused absence", "غياب بدون إذن (غير مسجل)": "Unexcused (not registered)",
         "تأخير بعذر": "Excused late", "خروج مبكر بإذن": "Approved early leave", "أخرى": "Other",
@@ -626,6 +626,7 @@
       <h2>${T.secLeaves}</h2>
       ${table([T.day, T.date, T.type], r.leaveDays.map((l) => [T.days[dow(l.date)], fmtD(l.date), esc(T.typeName(l.type))]))}
 
+      <div class="recs"><b>${T.mgrRec}</b><i></i><i></i><i></i></div>
       <div class="signs"><div>${T.empSign}<span></span></div><div>${T.mgrSign}<span></span></div></div>
       <footer><span>${T.printed}: ${fmtD(new Date().toISOString().slice(0, 10))}</span>${window.SIGNATURE ? window.SIGNATURE.printHTML() : ""}</footer>
     </section>`;
@@ -678,12 +679,19 @@
       .signs { display: flex; gap: 30px; margin-top: 18px; break-inside: avoid; }
       .signs div { flex: 1; font-weight: 700; color: #334155; }
       .signs span { display: block; border-bottom: 1px solid #94a3b8; height: 24px; }
-      footer { margin-top: 10px; color: #94a3b8; font-size: 9px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+      /* توصيات المدير: مساحة بأسطر للكتابة باليد */
+      .recs { margin-top: 14px; border: 1px solid #dbe3ef; border-radius: 6px; padding: 6px 10px 8px; break-inside: avoid; }
+      .recs b { display: block; color: #1e3a8a; font-size: 11px; margin-bottom: 2px; }
+      .recs i { display: block; height: 22px; border-bottom: 1px dotted #94a3b8; }
+      /* التذييل (تاريخ الطباعة والتوقيع الشخصي) في أسفل الورقة تمامًا */
+      .report { display: flex; flex-direction: column; min-height: 277mm; }
+      footer { margin-top: auto; padding-top: 6px; color: #94a3b8; font-size: 9px; text-align: center; border-top: 1px solid #e2e8f0; }
+      .report > :nth-last-child(2) { margin-bottom: 24px; }
       ${window.SIGNATURE ? window.SIGNATURE.PRINT_CSS : ""}
       @media print {
         html, body { background: #fff; }
         .toolbar { display: none; }
-        .report { width: auto; margin: 0; padding: 0; box-shadow: none; }
+        .report { width: auto; margin: 0; padding: 0; box-shadow: none; min-height: 276mm; }
       }`;
     const html = `<!doctype html><html lang="${lang}" dir="${T.dir}"><head><meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1"><title>${window.APP.esc(title)}</title>
