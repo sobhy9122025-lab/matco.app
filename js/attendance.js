@@ -428,7 +428,7 @@
     const blank = (m, cls) => (m ? `<span class="${cls}">${minToHM(m)}</span>` : "");
     const detailRows = r.details.map((d) => `<tr>
         <td><b>${DAY_AR[dow(d.date)]}</b> <span class="muted num">${fmtD(d.date)}</span></td>
-        <td class="num"><span dir="ltr">${secToHM(d.first) || "—"} – ${secToHM(d.last) || "—"}</span></td>
+        <td class="num"><span class="io" dir="rtl"><span>${secToHM(d.first) || "—"}</span> – <span>${secToHM(d.last) || "—"}</span></span></td>
         ${r.daily ? `<td class="num">${minToHM(d.worked)}</td>` : ""}
         <td class="num">${blank(d.late, "txt-bad")}</td><td class="num">${blank(d.early, "txt-bad")}</td>
         ${r.daily ? `<td class="num">${blank(d.over, "txt-ok")}</td>` : ""}
@@ -575,7 +575,7 @@
     const head = `<tr><th class="c-d">${H.d}</th><th class="c-t">${H.t}</th>${r.daily ? `<th>${H.w}</th>` : ""}<th>${H.l}</th><th>${H.e}</th>${r.daily ? `<th>${H.o}</th>` : ""}<th class="c-x">${H.x}</th></tr>`;
     const row = (d) => `<tr>
         <td class="c-d"><b>${T.days[dow(d.date)].slice(0, T.dir === "rtl" ? 10 : 3)}</b> ${fmtD(d.date).slice(0, 5)}</td>
-        <td class="c-t"><span dir="ltr">${secToHM(d.first) || "—"} – ${secToHM(d.last) || "—"}</span></td>
+        <td class="c-t"><span dir="${T.dir}"><span>${secToHM(d.first) || "—"}</span> – <span>${secToHM(d.last) || "—"}</span></span></td>
         ${r.daily ? `<td>${v(d.worked)}</td>` : ""}
         <td class="${d.late ? "red" : ""}">${v(d.late)}</td><td class="${d.early ? "red" : ""}">${v(d.early)}</td>
         ${r.daily ? `<td class="${d.over ? "green" : ""}">${v(d.over)}</td>` : ""}
