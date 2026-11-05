@@ -171,7 +171,7 @@
           ${COLS.map(([k, l]) => `<th data-k="${k}" class="${view.sort.key === k ? "sorted" : ""}">${l}${view.sort.key === k ? (view.sort.dir < 0 ? " ▼" : " ▲") : ""}</th>`).join("")}
         </tr></thead><tbody>
           ${rows.map((p) => `<tr data-id="${esc(p.id)}" class="clickable">
-            <td class="num">${esc(p.id)}</td><td><b>${esc(p.name || "—")}</b></td><td class="muted">${esc(p.dept)}</td>
+            <td class="num">${esc(p.id)}</td><td class="nm"><b>${esc(p.name || "—")}</b></td><td class="muted">${esc(p.dept)}</td>
             <td class="num ${p.sick >= SICK_QUOTA ? "txt-bad" : ""}">${p.sick || ""}</td><td class="num">${p.annual || ""}</td><td class="num">${p.emergency || ""}</td>
             <td class="num">${p.unpaid || ""}</td><td class="num">${p.other || ""}</td><td class="num"><b>${p.total || ""}</b></td>
             <td class="num">${p.excused || ""}</td><td class="num ${p.unexcused ? "txt-bad" : ""}">${p.unexcused || ""}</td><td class="num">${p.lateExc || ""}</td>
@@ -266,7 +266,7 @@
         </div>
         <div class="table-wrap"><table class="grid view-grid"><thead><tr><th>#</th><th>الرقم</th><th>الاسم</th><th>القسم</th><th>عدد الإجازات</th><th>الأيام</th><th>المتبقي</th><th>تجاوز</th><th>الحالة</th><th>آخر إجازة مرضية</th></tr></thead><tbody>
           ${rows.map((p, i) => { const [c, s] = sickStatus(p.sick); const lastSick = p.leaves.filter((l) => l.leave_type === "مرضية").map((l) => iso(l.end_date)).sort().pop();
-            return `<tr data-id="${esc(p.id)}" class="clickable"><td class="num">${i + 1}</td><td class="num">${esc(p.id)}</td><td><b>${esc(p.name)}</b></td><td class="muted">${esc(p.dept)}</td>
+            return `<tr data-id="${esc(p.id)}" class="clickable"><td class="num">${i + 1}</td><td class="num">${esc(p.id)}</td><td class="nm"><b>${esc(p.name)}</b></td><td class="muted">${esc(p.dept)}</td>
               <td class="num">${p.sickCount}</td><td class="num"><b>${p.sick}</b></td><td class="num">${Math.max(SICK_QUOTA - p.sick, 0)}</td><td class="num ${p.sick > SICK_QUOTA ? "txt-bad" : ""}">${Math.max(p.sick - SICK_QUOTA, 0) || ""}</td>
               <td><span class="tag ${c}-tag">${s}</span></td><td class="num">${fmtD(lastSick)}</td></tr>`; }).join("") || `<tr class="empty-row"><td colspan="10">لا توجد إجازات مرضية في الفترة دي</td></tr>`}
         </tbody></table></div>`;

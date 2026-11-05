@@ -344,3 +344,7 @@ tr.clickable { cursor: pointer; }
 .emp-pick { max-width: 520px; }
 .kpi.ok .v, .kpi.bad .v, .kpi.warn .v { }
 .two-col > *, .upload-grid > *, .settings-row > * { min-width: 0; }
+/* اسم الموظف في سطر واحد */
+table.grid td.nm, table.grid .c-name { white-space: nowrap; min-width: 220px; }
+table.grid td.nm b { white-space: nowrap; }
+table.sortable td { white-space: nowrap; }
