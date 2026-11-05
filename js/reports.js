@@ -135,7 +135,7 @@
       $("#r-kpis").innerHTML = [
         ["", n(sum("total")), "إجمالي أيام الإجازات"],
         ["", n(sum("count")), "عدد طلبات الإجازة"],
-        ["", n(withLeaves), "موظفين عندهم إجازات"],
+        ["", n(withLeaves), "موظفون لديهم إجازات"],
         ["bad", n(sum("sick")), "أيام مرضية"],
         ["ok", n(sum("annual")), "أيام سنوية"],
         ["bad", n(over), `🔴 تجاوزوا ${SICK_QUOTA} يوم مرضي`],
@@ -175,7 +175,7 @@
             <td class="num ${p.sick >= SICK_QUOTA ? "txt-bad" : ""}">${p.sick || ""}</td><td class="num">${p.annual || ""}</td><td class="num">${p.emergency || ""}</td>
             <td class="num">${p.unpaid || ""}</td><td class="num">${p.other || ""}</td><td class="num"><b>${p.total || ""}</b></td>
             <td class="num">${p.excused || ""}</td><td class="num ${p.unexcused ? "txt-bad" : ""}">${p.unexcused || ""}</td><td class="num">${p.lateExc || ""}</td>
-            <td class="num">${fmtD(p.last)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="13">لا توجد بيانات في الفترة دي</td></tr>`}
+            <td class="num">${fmtD(p.last)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="13">لا توجد بيانات في هذه الفترة</td></tr>`}
         </tbody></table></div>
         <p class="muted">💡 اضغط على أي موظف لفتح تقريره — واضغط على عنوان أي عمود للترتيب.</p>`;
       $("#r-body thead").addEventListener("click", (e) => {
@@ -201,7 +201,7 @@
       $("#r-body").innerHTML = `<div class="emp-pick"><div id="r-emp-combo"></div></div><div id="r-emp-out"></div>`;
       A.employeeCombo($("#r-emp-combo"), (emp) => { view.empId = emp.id; showEmp(); });
       if (view.empId) showEmp();
-      else $("#r-emp-out").innerHTML = `<div class="muted" style="margin-top:12px">اختر موظف، أو اضغط على اسمه في جدول الإجماليات.</div>`;
+      else $("#r-emp-out").innerHTML = `<div class="muted" style="margin-top:12px">اختر موظفًا، أو اضغط على اسمه في جدول الإجماليات.</div>`;
     }
     function showEmp() {
       const p = compute(A, true).list.find((x) => x.id === view.empId);
@@ -268,7 +268,7 @@
           ${rows.map((p, i) => { const [c, s] = sickStatus(p.sick); const lastSick = p.leaves.filter((l) => l.leave_type === "مرضية").map((l) => iso(l.end_date)).sort().pop();
             return `<tr data-id="${esc(p.id)}" class="clickable"><td class="num">${i + 1}</td><td class="num">${esc(p.id)}</td><td class="nm"><b>${esc(p.name)}</b></td><td class="muted">${esc(p.dept)}</td>
               <td class="num">${p.sickCount}</td><td class="num"><b>${p.sick}</b></td><td class="num">${Math.max(SICK_QUOTA - p.sick, 0)}</td><td class="num ${p.sick > SICK_QUOTA ? "txt-bad" : ""}">${Math.max(p.sick - SICK_QUOTA, 0) || ""}</td>
-              <td><span class="tag ${c}-tag">${s}</span></td><td class="num">${fmtD(lastSick)}</td></tr>`; }).join("") || `<tr class="empty-row"><td colspan="10">لا توجد إجازات مرضية في الفترة دي</td></tr>`}
+              <td><span class="tag ${c}-tag">${s}</span></td><td class="num">${fmtD(lastSick)}</td></tr>`; }).join("") || `<tr class="empty-row"><td colspan="10">لا توجد إجازات مرضية في هذه الفترة</td></tr>`}
         </tbody></table></div>`;
       $("#s-filter").addEventListener("change", (e) => { view.sickFilter = e.target.value; drawSick(list); });
       $("#r-body tbody").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-id]"); if (tr) { view.empId = tr.dataset.id; view.tab = "emp"; draw(); } });

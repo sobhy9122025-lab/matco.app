@@ -87,7 +87,7 @@
       if (t && cols[t] === undefined) cols[t] = i;
     });
     if (cols.employee_id === undefined || cols.date === undefined) {
-      throw new Error("ملف البصمة لازم يكون فيه عمود Employee ID وعمود Date. الأعمدة الموجودة: " + grid[hdr].filter(Boolean).join(" ، "));
+      throw new Error("يجب أن يحتوي ملف البصمة على عمودي Employee ID و Date. الأعمدة الموجودة: " + grid[hdr].filter(Boolean).join(" ، "));
     }
     if (cols.first === undefined && cols.last === undefined) {
       throw new Error("ملف البصمة لا يحتوي على عمودي First Punch / Last Punch");
@@ -229,14 +229,14 @@
           const hits = absences.filter((x) => inRange(x.date) && x.type === a.record_type);
           const presentDays = [...present].filter(inRange).length;
           return { ...a, kind: "day", matched: hits.length, matchedMin: 0,
-            note: hits.length ? `${hits.length} يوم غياب` : presentDays ? "الموظف كان حاضر (له بصمة) في الأيام دي" : "الأيام دي إجازة أو عطلة" };
+            note: hits.length ? `${hits.length} يوم غياب` : presentDays ? "الموظف حاضر (له بصمة) في هذه الأيام" : "هذه الأيام إجازة أو عطلة رسمية" };
         }
         const useLate = a.record_type !== "خروج مبكر بإذن", useEarly = a.record_type !== "تأخير بعذر";
         const mins = (d) => (useLate ? d.late : 0) + (useEarly ? d.early : 0);
         const hits = details.filter((d) => inRange(d.date) && mins(d) > 0);
         const m = hits.reduce((t, d) => t + mins(d), 0);
         return { ...a, kind: "late", matched: hits.length, matchedMin: m,
-          note: hits.length ? `${hits.length} يوم — ${minToHM(m)}` : `مفيش ${a.record_type === "خروج مبكر بإذن" ? "خروج مبكر" : a.record_type === "تأخير بعذر" ? "تأخير" : "تأخير أو خروج مبكر"} في الأيام دي` };
+          note: hits.length ? `${hits.length} يوم — ${minToHM(m)}` : `لا يوجد ${a.record_type === "خروج مبكر بإذن" ? "خروج مبكر" : a.record_type === "تأخير بعذر" ? "تأخير" : "تأخير أو خروج مبكر"} في هذه الأيام` };
       });
 
     return {
@@ -252,7 +252,7 @@
   async function processFile(file, startHM, grace) {
     const A = window.APP;
     const rows = await readAttendanceFile(file);
-    if (!rows.length) throw new Error("الملف مفيهوش بيانات بصمة");
+    if (!rows.length) throw new Error("الملف لا يحتوي على بيانات بصمة");
     const [leaves, absences] = await Promise.all([A.loadKind("leaves", true), A.loadKind("absences", true)]);
     const ctx = { employees: A.state.employees, leaves, absences, startSec: hmToSec(startHM), grace: +grace || 0 };
     const groups = new Map();
@@ -271,7 +271,7 @@
     const A = window.APP, esc = A.esc;
     root.innerHTML = `
       <div class="page-head">
-        <div><h2>📈 تقرير البصمة</h2><p>ارفع ملف البصمة (Excel) — التأخير والخروج المبكر والغياب بيتحسبوا تلقائيًا، والإجازات المعتمدة والأعذار المسجلة بتتربط لوحدها.</p></div>
+        <div><h2>📈 تقرير البصمة</h2><p>ارفع ملف البصمة (Excel) — يُحتسب التأخير والخروج المبكر والغياب تلقائيًا، وتُربط الإجازات المعتمدة والأعذار المسجّلة بالتقرير.</p></div>
       </div>
       <div class="card">
         <div class="upload-grid">
@@ -478,7 +478,7 @@
             </tr></thead><tbody>${detailRows}</tbody></table></div>` : `<div class="ok-box">لا يوجد تأخير أو خروج مبكر ✅</div>`}
           </div>
           <div data-pane="exc" hidden>
-            ${r.excuses.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr><th>رقم السجل</th><th>من</th><th>إلى</th><th>النوع</th><th>السبب</th><th>انعكس على</th></tr></thead><tbody>
+            ${r.excuses.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr><th>رقم السجل</th><th>من</th><th>إلى</th><th>النوع</th><th>السبب</th><th>الأثر</th></tr></thead><tbody>
               ${r.excuses.map((x) => `<tr><td class="num">${esc(x.record_id || "")}</td><td class="num">${fmtD(String(x.start_date).slice(0, 10))}</td><td class="num">${fmtD(String(x.end_date || x.start_date).slice(0, 10))}</td>
                 <td><span class="tag">${esc(x.record_type)}</span></td><td>${esc(x.reason || "—")}</td>
                 <td><span class="tag ${x.matched ? "ok-tag" : "warn-tag"}">${esc(x.note)}</span></td></tr>`).join("")}
@@ -697,7 +697,7 @@
         <\/script>
       </body></html>`;
     const w = window.open("", "_blank");
-    if (!w) { window.APP.toast("المتصفح منع فتح صفحة التقرير — اسمح بالنوافذ المنبثقة للموقع ده وجرب تاني", "bad"); return; }
+    if (!w) { window.APP.toast("منع المتصفح فتح صفحة التقرير — يُرجى السماح بالنوافذ المنبثقة لهذا الموقع ثم المحاولة مرة أخرى", "bad"); return; }
     w.document.open();
     w.document.write(html);
     w.document.close();

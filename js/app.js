@@ -217,7 +217,7 @@
   });
 
   $("#logout-btn").addEventListener("click", async () => {
-    if (hasPendingChanges() && !confirm("فيه تعديلات غير محفوظة. تخرج برضه؟")) return;
+    if (hasPendingChanges() && !confirm("توجد تعديلات غير محفوظة. هل تريد الخروج على أي حال؟")) return;
     await DB.signOut();
     state.user = null;
     state.isAdmin = false;
@@ -228,7 +228,7 @@
   });
 
   $("#refresh-btn").addEventListener("click", async () => {
-    if (hasPendingChanges() && !confirm("فيه تعديلات غير محفوظة هتضيع. تكمل؟")) return;
+    if (hasPendingChanges() && !confirm("توجد تعديلات غير محفوظة وستُفقد. هل تريد المتابعة؟")) return;
     loading(true, "جاري التحديث...");
     try {
       await loadEmployees();
@@ -266,7 +266,7 @@
         <div class="big">🚧</div>
         <h2>${esc(title)}</h2>
         <p class="muted">${esc(text)}</p>
-        <p>الصفحة دي جاية في المرحلة الجاية إن شاء الله.</p>
+        <p>هذه الصفحة قيد التطوير وستتوفر قريبًا بإذن الله.</p>
       </div>`;
   }
 
@@ -629,7 +629,7 @@
       const any = added + edited + deleted > 0;
       const pend = $("#pending");
       pend.hidden = !any;
-      pend.textContent = `غير محفوظ: ➕ ${added} جديد · ✏️ ${edited} تعديل · 🗑️ ${deleted} حذف` + (invalid ? ` · ⚠️ ${invalid} فيها خطأ` : "");
+      pend.textContent = `غير محفوظ: ➕ ${added} جديد · ✏️ ${edited} تعديل · 🗑️ ${deleted} حذف` + (invalid ? ` · ⚠️ ${invalid} بها أخطاء` : "");
       $("#save-btn").disabled = !any || invalid > 0;
       $("#undo-btn").disabled = !any;
     }
@@ -694,18 +694,18 @@
     const inserts = [], updates = [], deletes = [];
     for (const r of ui.rows) {
       if (r.isNew) {
-        if (rowErrors(r).length) return toast("فيه صفوف فيها أخطاء (باللون الأحمر) — صحّحها قبل الحفظ", "bad");
+        if (rowErrors(r).length) return toast("توجد صفوف بها أخطاء (باللون الأحمر) — يُرجى تصحيحها قبل الحفظ", "bad");
         const rec = { employee_id: r.cur.employee_id, [k.typeCol]: r.cur.type, start_date: r.cur.start_date, end_date: r.cur.end_date || r.cur.start_date, [k.textCol]: r.cur.text, created_by: userName() };
         if (k.hasStatus) rec.status = r.cur.status || "معتمدة";
         inserts.push(rec);
       } else if (r.isDeleted) {
         deletes.push(r.id);
       } else if (r.dirty) {
-        if (rowErrors(r).length) return toast("فيه صفوف فيها أخطاء (باللون الأحمر) — صحّحها قبل الحفظ", "bad");
+        if (rowErrors(r).length) return toast("توجد صفوف بها أخطاء (باللون الأحمر) — يُرجى تصحيحها قبل الحفظ", "bad");
         updates.push([r.id, rowChanges(kind, r)]);
       }
     }
-    if (deletes.length && !confirm(`هيتم حذف ${deletes.length} سجل نهائيًا. متأكد؟`)) return;
+    if (deletes.length && !confirm(`سيتم حذف ${deletes.length} سجل نهائيًا. هل أنت متأكد؟`)) return;
 
     loading(true, "جاري الحفظ...");
     try {
@@ -765,7 +765,7 @@
     if (row.attPath) {
       const view = $("#att-view");
       if (!row.attPath.startsWith(ATTACH_PREFIX)) {
-        view.innerHTML = `<span class="muted">المرفق ده اتسجل في الموقع القديم قبل قاعدة البيانات ومش متاح: ${esc(row.attName)}</span>`;
+        view.innerHTML = `<span class="muted">هذا المرفق مسجّل في النظام القديم وغير متاح: ${esc(row.attName)}</span>`;
         return;
       }
       try {
@@ -799,7 +799,7 @@
       if (k.hasStatus) o["الحالة"] = r.cur.status;
       o[k.textLabel] = r.cur.text;
       o["مرفق"] = r.attName ? "نعم" : "";
-      o["سجّله"] = r.orig.created_by || "";
+      o["المُسجِّل"] = r.orig.created_by || "";
       return o;
     });
     const ws = XLSX.utils.json_to_sheet(out);
@@ -832,14 +832,14 @@
       if (version && String(version) !== String(APP_VERSION) && !$(".update-bar")) {
         const bar = document.createElement("div");
         bar.className = "update-bar";
-        bar.innerHTML = `🔔 فيه نسخة جديدة من الموقع <button type="button">تحديث الآن</button>`;
+        bar.innerHTML = `🔔 يتوفر إصدار جديد من النظام <button type="button">تحديث الآن</button>`;
         bar.querySelector("button").addEventListener("click", () => {
-          if (hasPendingChanges() && !confirm("فيه تعديلات غير محفوظة هتضيع. تحدّث برضه؟")) return;
+          if (hasPendingChanges() && !confirm("توجد تعديلات غير محفوظة وستُفقد. هل تريد التحديث على أي حال؟")) return;
           location.replace(location.pathname + "?v=" + encodeURIComponent(version) + location.hash);
         });
         document.body.appendChild(bar);
       }
-    } catch (_) { /* مفيش نت — نجرب بعدين */ }
+    } catch (_) { /* لا يوجد اتصال — ستتم المحاولة لاحقًا */ }
   }
   checkVersion();
   setInterval(checkVersion, 5 * 60 * 1000);

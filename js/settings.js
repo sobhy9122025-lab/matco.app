@@ -39,7 +39,7 @@
   function parseEmployees(sheets) {
     const hit = findSheet(sheets, (k) => k.includes("Personnel Number"))
       || findSheet(sheets, (k) => k.includes("employee_id") && !k.includes("start_date") && (k.includes("name_ar") || k.includes("Arabic name")));
-    if (!hit) throw new Error("مش لاقي ورقة فيها عمود Personnel Number (أو employee_id)");
+    if (!hit) throw new Error("لم يتم العثور على ورقة تحتوي على عمود Personnel Number (أو employee_id)");
     const [sheetName, rows] = hit;
     const map = new Map();
     for (const r of rows) {
@@ -103,7 +103,7 @@
         out.absences.push({ employee_id: id, record_type: type, start_date: s, end_date: e, reason: text(pick(r, "السبب", "reason")), created_by: "استيراد" });
       }
     }
-    if (!out.sheets.length) throw new Error("مش لاقي ورقة إجازات (فيها employee_id و start_date) ولا ورقة غياب");
+    if (!out.sheets.length) throw new Error("لم يتم العثور على ورقة إجازات (تحتوي على employee_id و start_date) أو ورقة غياب");
     return out;
   }
 
@@ -115,7 +115,7 @@
   function render(root) {
     const A = window.APP, esc = A.esc;
     if (!A.state.isAdmin) {
-      root.innerHTML = `<div class="card soon"><div class="big">🔒</div><h2>الإعدادات</h2><p class="muted">الصفحة دي للمدير بس.</p></div>`;
+      root.innerHTML = `<div class="card soon"><div class="big">🔒</div><h2>الإعدادات</h2><p class="muted">هذه الصفحة مخصّصة للمدير فقط.</p></div>`;
       return;
     }
     root.innerHTML = `
@@ -127,23 +127,23 @@
 
       <div class="card">
         <div class="card-title">👥 رفع ملف الموظفين</div>
-        <p class="muted" style="margin-top:-6px">ملف Excel فيه عمود <b>Personnel Number</b>. الموظف الموجود بتتحدّث بياناته، والجديد بيتضاف، ومفيش حد بيتمسح.
-          بيتحفظ بس: الرقم الوظيفي، الاسم العربي والإنجليزي، القسم، الوظيفة، الجنسية، وطريقة الاحتساب — <b>رقم الهوية والآيبان وباقي البيانات الشخصية مش بيترفعوا</b>.</p>
+        <p class="muted" style="margin-top:-6px">ملف Excel يحتوي على عمود <b>Personnel Number</b>. تُحدَّث بيانات الموظف الموجود، ويُضاف الموظف الجديد، ولا يُحذف أي موظف.
+          تُحفظ البيانات التالية فقط: الرقم الوظيفي، والاسم العربي والإنجليزي، والقسم، والوظيفة، والجنسية، وطريقة الاحتساب — <b>لا يُرفع رقم الهوية ولا الآيبان ولا أي بيانات شخصية أخرى</b>.</p>
         <div class="settings-row">
           <label class="dropzone small" id="emp-dz"><input type="file" id="emp-file" accept=".xlsx,.xls" hidden>
             <div class="dz-icon">👥</div><div class="dz-title" id="emp-dz-title">اختر ملف الموظفين</div></label>
-          <div class="settings-side" id="emp-preview"><span class="muted">لسه ما اخترتش ملف.</span></div>
+          <div class="settings-side" id="emp-preview"><span class="muted">لم يتم اختيار ملف بعد.</span></div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title">🏖️ رفع الإجازات والغياب السابقة</div>
-        <p class="muted" style="margin-top:-6px">ملف Excel فيه ورقة الإجازات (أعمدة <b>employee_id</b> و <b>start_date</b> و <b>end_date</b> و <b>leave_type</b>)،
-          ولو فيه ورقة <b>الغياب والتأخير</b> هتترفع كمان. السجلات المكررة (نفس الموظف ونفس التواريخ ونفس النوع) بتتجاهل، فتقدر ترفع نفس الملف أكتر من مرة بأمان.</p>
+        <p class="muted" style="margin-top:-6px">ملف Excel يحتوي على ورقة الإجازات (أعمدة <b>employee_id</b> و <b>start_date</b> و <b>end_date</b> و <b>leave_type</b>)،
+          وإن وُجدت ورقة <b>الغياب والتأخير</b> فستُرفع أيضًا. تُتجاهل السجلات المكررة (الموظف نفسه والتواريخ نفسها والنوع نفسه)، لذا يمكن رفع الملف نفسه أكثر من مرة بأمان.</p>
         <div class="settings-row">
           <label class="dropzone small" id="hist-dz"><input type="file" id="hist-file" accept=".xlsx,.xls" hidden>
             <div class="dz-icon">🏖️</div><div class="dz-title" id="hist-dz-title">اختر ملف الإجازات</div></label>
-          <div class="settings-side" id="hist-preview"><span class="muted">لسه ما اخترتش ملف.</span></div>
+          <div class="settings-side" id="hist-preview"><span class="muted">لم يتم اختيار ملف بعد.</span></div>
         </div>
       </div>`;
 
@@ -161,7 +161,7 @@
             <div>📄 الورقة: <b>${esc(view.emp.sheetName)}</b></div>
             <div>👥 عدد الموظفين في الملف: <b>${view.emp.rows.length.toLocaleString("en-US")}</b></div>
             <div class="txt-ok">➕ جديد: <b>${isNew.toLocaleString("en-US")}</b></div>
-            <div>✏️ موجود (هيتحدّث): <b>${(view.emp.rows.length - isNew).toLocaleString("en-US")}</b></div>
+            <div>✏️ موجود (سيُحدَّث): <b>${(view.emp.rows.length - isNew).toLocaleString("en-US")}</b></div>
           </div>
           <button class="btn btn-primary" id="emp-go">⬆️ رفع وتحديث الموظفين</button>`;
         $("#emp-go").addEventListener("click", uploadEmployees);
@@ -201,11 +201,11 @@
         $("#hist-preview").innerHTML = `
           <div class="preview-list">
             <div>📄 الأوراق: <b>${h.sheets.map(esc).join(" ، ")}</b></div>
-            <div class="txt-ok">🏖️ إجازات جديدة هتترفع: <b>${h.leaves.length.toLocaleString("en-US")}</b></div>
-            <div class="txt-ok">⏰ غياب/تأخير جديد هيترفع: <b>${h.absences.length.toLocaleString("en-US")}</b></div>
-            <div>🔁 مكرر موجود قبل كده (هيتجاهل): <b>${h.dup.toLocaleString("en-US")}</b></div>
-            ${h.invalid ? `<div class="txt-bad">⚠️ صفوف ناقصة أو تواريخها غلط (هتتجاهل): <b>${h.invalid}</b></div>` : ""}
-            ${unknown.length ? `<div class="txt-bad">⚠️ أرقام وظيفية مش موجودة في الموظفين (هتتجاهل): <b>${unknown.length}</b>
+            <div class="txt-ok">🏖️ إجازات جديدة سيتم رفعها: <b>${h.leaves.length.toLocaleString("en-US")}</b></div>
+            <div class="txt-ok">⏰ غياب/تأخير جديد سيتم رفعه: <b>${h.absences.length.toLocaleString("en-US")}</b></div>
+            <div>🔁 مكرر موجود مسبقًا (سيتم تجاهله): <b>${h.dup.toLocaleString("en-US")}</b></div>
+            ${h.invalid ? `<div class="txt-bad">⚠️ صفوف ناقصة أو بتواريخ غير صحيحة (سيتم تجاهلها): <b>${h.invalid}</b></div>` : ""}
+            ${unknown.length ? `<div class="txt-bad">⚠️ أرقام وظيفية غير موجودة في قائمة الموظفين (سيتم تجاهلها): <b>${unknown.length}</b>
               <div class="muted small-list">${unknown.slice(0, 30).map(esc).join("، ")}${unknown.length > 30 ? " ..." : ""}</div></div>` : ""}
           </div>
           <button class="btn btn-primary" id="hist-go" ${h.leaves.length + h.absences.length ? "" : "disabled"}>⬆️ رفع السجلات الجديدة</button>`;
