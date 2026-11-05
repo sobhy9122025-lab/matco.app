@@ -1,6 +1,6 @@
 /* =========================================================
    التقارير والمؤشرات
-   - مؤشرات عامة + رسوم بيانية
+   - مؤشرات عامة
    - إجماليات الموظفين
    - تقرير موظف
    - الإجازات المرضية (حد 30 يوم في السنة)
@@ -10,14 +10,12 @@
 
   const SICK_QUOTA = 30;
   const MAIN_TYPES = ["مرضية", "سنوية", "اضطرارية", "بدون راتب"];
-  const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
   const $ = (s, r = document) => r.querySelector(s);
   const pad = (n) => String(n).padStart(2, "0");
   const iso = (v) => String(v || "").slice(0, 10);
   const fmtD = (d) => (d ? d.split("-").reverse().join("/") : "");
   const n = (v) => Number(v || 0).toLocaleString("en-US");
   const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1;
-  const addDay = (d, k) => { const x = new Date(Date.parse(d) + k * 864e5); return `${x.getUTCFullYear()}-${pad(x.getUTCMonth() + 1)}-${pad(x.getUTCDate())}`; };
 
   const view = {
     tab: "totals",
@@ -48,8 +46,6 @@
       }
       return per.get(id);
     };
-    const months = Array.from({ length: 12 }, () => ({ total: 0, sick: 0 }));
-    const byType = {};
 
     for (const l of leaves) {
       const c = clip(l, view.from, view.to);
@@ -63,13 +59,6 @@
       if (t === "مرضية") p.sickCount++;
       if (c.e > p.last) p.last = c.e;
       p.leaves.push({ ...l, days: c.days });
-      byType[t] = (byType[t] || 0) + c.days;
-      // توزيع الأيام على الشهور
-      for (let d = c.s; d <= c.e; d = addDay(d, 1)) {
-        const m = +d.slice(5, 7) - 1;
-        months[m].total++;
-        if (t === "مرضية") months[m].sick++;
-      }
     }
     for (const a of abs) {
       const c = clip(a, view.from, view.to);
@@ -87,28 +76,10 @@
     const depts = [...new Set(list.map((p) => p.dept).filter(Boolean))].sort();
     if (view.dept && !ignoreFilters) list = list.filter((p) => p.dept === view.dept);
     if (view.q && !ignoreFilters) { const q = view.q.toLowerCase(); list = list.filter((p) => `${p.id} ${p.name}`.toLowerCase().includes(q)); }
-    return { list, depts, months, byType };
+    return { list, depts };
   }
 
   const sickStatus = (d) => (d >= SICK_QUOTA ? ["bad", "🔴 تجاوز الحد"] : d >= SICK_QUOTA * 0.7 ? ["warn", "🟡 اقترب من الحد"] : ["ok", "🟢 طبيعي"]);
-
-  // ---------------- الرسوم البيانية (بدون مكتبات) ----------------
-  function barsMonths(months) {
-    const max = Math.max(1, ...months.map((m) => m.total));
-    return `<div class="chart-months">${months.map((m, i) => `
-      <div class="cm-col" title="${MONTHS[i]}: ${m.total} يوم (مرضية ${m.sick})">
-        <div class="cm-val num">${m.total || ""}</div>
-        <div class="cm-bar"><div class="cm-fill" style="height:${(m.total / max) * 100}%"><div class="cm-sick" style="height:${m.total ? (m.sick / m.total) * 100 : 0}%"></div></div></div>
-        <div class="cm-lbl">${MONTHS[i].slice(0, 3)}</div>
-      </div>`).join("")}</div>
-      <div class="legend"><span><i class="lg-total"></i> كل الإجازات</span><span><i class="lg-sick"></i> مرضية</span></div>`;
-  }
-  function barsH(entries, esc) {
-    const max = Math.max(1, ...entries.map(([, v]) => v));
-    return `<div class="hbars">${entries.map(([k, v]) => `
-      <div class="hb-row"><div class="hb-lbl" title="${esc(k)}">${esc(k)}</div>
-        <div class="hb-track"><div class="hb-fill" style="width:${(v / max) * 100}%"></div></div><div class="hb-val num">${n(v)}</div></div>`).join("")}</div>`;
-  }
 
   // =========================================================
   // الصفحة
@@ -121,27 +92,22 @@
 
     root.innerHTML = `
       <div class="page-head"><div><h2>📑 التقارير والمؤشرات</h2><p>إجماليات الإجازات والغياب لكل الموظفين، وتقرير لكل موظف، ومتابعة الإجازات المرضية.</p></div></div>
-      <div class="card">
+      <div class="rep-layout">
+        <aside class="rep-side" id="r-kpis"></aside>
+        <div class="card rep-main">
         <div class="filters rep-filters">
           <label>من تاريخ <input type="date" id="r-from" value="${view.from}"></label>
           <label>إلى تاريخ <input type="date" id="r-to" value="${view.to}"></label>
           <label>القسم <select id="r-dept"></select></label>
           <label>🔎 بحث بالاسم أو الرقم <input type="search" id="r-q" value="${esc(view.q)}" placeholder="مثال: 27164 أو محمد"></label>
         </div>
-      </div>
-      <div class="kpis" id="r-kpis"></div>
-      <div class="charts-grid">
-        <div class="card"><div class="card-title">📅 أيام الإجازات حسب الشهر</div><div id="r-ch-months"></div></div>
-        <div class="card"><div class="card-title">🏷️ حسب نوع الإجازة</div><div id="r-ch-types"></div></div>
-        <div class="card"><div class="card-title">🏢 أكثر الأقسام إجازات</div><div id="r-ch-depts"></div></div>
-      </div>
-      <div class="card">
         <div class="tabs" id="r-tabs">
           <button class="tab" data-t="totals">👥 إجماليات الموظفين</button>
           <button class="tab" data-t="emp">👤 تقرير موظف</button>
           <button class="tab" data-t="sick">🤒 الإجازات المرضية</button>
         </div>
         <div id="r-body"></div>
+      </div>
       </div>`;
 
     const onF = () => {
@@ -177,18 +143,7 @@
         ["ok", n(sum("excused")), "أيام غياب بإذن"],
         ["bad", n(sum("unexcused")), "أيام غياب بدون إذن"],
         ["warn", n(sum("lateExc")), "أعذار تأخير / خروج"],
-      ].map(([c, v, l]) => `<div class="kpi ${c}"><div class="v num">${v}</div><div class="l">${esc(l)}</div></div>`).join("");
-      // الرسوم
-      const months = Array.from({ length: 12 }, () => ({ total: 0, sick: 0 }));
-      for (const p of list) for (const l of p.leaves) {
-        const c = clip(l, view.from, view.to);
-        for (let d = c.s; d <= c.e; d = addDay(d, 1)) { const m = +d.slice(5, 7) - 1; months[m].total++; if (l.leave_type === "مرضية") months[m].sick++; }
-      }
-      $("#r-ch-months").innerHTML = barsMonths(months);
-      const types = {}; for (const p of list) for (const [k, v] of Object.entries(p.types)) types[k] = (types[k] || 0) + v;
-      $("#r-ch-types").innerHTML = Object.keys(types).length ? barsH(Object.entries(types).sort((a, b) => b[1] - a[1]), esc) : `<div class="muted">لا توجد بيانات</div>`;
-      const dep = {}; for (const p of list) if (p.total) dep[p.dept || "بدون قسم"] = (dep[p.dept || "بدون قسم"] || 0) + p.total;
-      $("#r-ch-depts").innerHTML = Object.keys(dep).length ? barsH(Object.entries(dep).sort((a, b) => b[1] - a[1]).slice(0, 8), esc) : `<div class="muted">لا توجد بيانات</div>`;
+      ].map(([c, v, l]) => `<div class="mini-kpi ${c}"><div class="l">${esc(l)}</div><div class="v num">${v}</div></div>`).join("");
       // التبويب
       document.querySelectorAll("#r-tabs [data-t]").forEach((b) => b.classList.toggle("active", b.dataset.t === view.tab));
       if (view.tab === "totals") drawTotals(list);
@@ -253,8 +208,6 @@
       const e = A.state.employees.get(view.empId) || {};
       const info = p || { id: view.empId, name: e.name || "", dept: e.dept || "", job: e.job || "", total: 0, count: 0, sick: 0, annual: 0, excused: 0, unexcused: 0, lateExc: 0, leaves: [], regs: [], types: {} };
       const [cls, st] = sickStatus(info.sick);
-      const months = Array.from({ length: 12 }, () => ({ total: 0, sick: 0 }));
-      for (const l of info.leaves) { const c = clip(l, view.from, view.to); for (let d = c.s; d <= c.e; d = addDay(d, 1)) { const m = +d.slice(5, 7) - 1; months[m].total++; if (l.leave_type === "مرضية") months[m].sick++; } }
       const leaves = [...info.leaves].sort((a, b) => iso(b.start_date).localeCompare(iso(a.start_date)));
       const regs = [...info.regs].sort((a, b) => iso(b.start_date).localeCompare(iso(a.start_date)));
       $("#r-emp-out").innerHTML = `
@@ -273,7 +226,6 @@
           <div class="kpi bad"><div class="v num">${info.unexcused}</div><div class="l">غياب بدون إذن</div></div>
           <div class="kpi warn"><div class="v num">${info.lateExc}</div><div class="l">أعذار تأخير / خروج</div></div>
         </div>
-        <div class="card" style="margin-top:12px"><div class="card-title">📅 الإجازات حسب الشهر</div>${barsMonths(months)}</div>
         <div class="two-col" style="margin-top:12px">
           <div><h4>🏖️ الإجازات (${leaves.length})</h4>${leaves.length ? `<div class="table-wrap"><table class="grid view-grid"><thead><tr><th>رقم</th><th>النوع</th><th>من</th><th>إلى</th><th>الأيام</th><th>ملاحظات</th></tr></thead><tbody>
             ${leaves.map((l) => `<tr><td class="num">${esc(l.leave_id)}</td><td><span class="tag ${l.leave_type === "مرضية" ? "bad-tag" : ""}">${esc(l.leave_type)}</span></td><td class="num">${fmtD(iso(l.start_date))}</td><td class="num">${fmtD(iso(l.end_date))}</td><td class="num"><b>${l.days}</b></td><td>${esc(l.notes || "")}</td></tr>`).join("")}
