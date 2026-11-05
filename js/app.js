@@ -100,7 +100,7 @@
       async session() { return check(await sb.auth.getSession()).session; },
       async signIn(email, password) { return check(await sb.auth.signInWithPassword({ email, password })).user; },
       async signOut() { await sb.auth.signOut(); },
-      employees: () => fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality"),
+      employees: () => fetchAll("employees", "employee_id,name_ar,name_en,department,job_title,nationality,attendance_calculation"),
       all: (table) => fetchAll(table),
       async insert(table, rows) { return check(await sb.from(table).insert(rows).select()); },
       async update(table, key, id, fields) { check(await sb.from(table).update(fields).eq(key, id)); },
@@ -140,7 +140,7 @@
     for (const r of rows) {
       const id = cleanId(r.employee_id);
       if (!id) continue;
-      const e = { id, name: r.name_ar || r.name_en || "", nameEn: r.name_en || "", dept: r.department || "", job: r.job_title || "" };
+      const e = { id, name: r.name_ar || r.name_en || "", nameEn: r.name_en || "", dept: r.department || "", job: r.job_title || "", nat: r.nationality || "", rule: r.attendance_calculation || "" };
       state.employees.set(id, e);
       state.empList.push({ ...e, hay: `${e.name} ${e.nameEn} ${id}`.toLowerCase() });
     }
@@ -241,7 +241,7 @@
     $$("#mainnav a").forEach((a) => a.classList.toggle("active", a.dataset.page === page));
     const root = $("#page");
     if (page === "leaves" || page === "absences") return renderRecordsPage(root, page);
-    if (page === "attendance") return renderSoon(root, "📈 تقرير البصمة", "رفع ملف البصمة وحساب التأخير والخروج المبكر والغياب، وتصدير PDF.");
+    if (window.PAGES && window.PAGES[page]) return window.PAGES[page](root);
     if (page === "reports") return renderSoon(root, "📑 التقارير", "تقرير الموظف، والإجازات المرضية، وملخص الإجازات.");
     location.hash = "#leaves";
   }
@@ -796,6 +796,9 @@
     const ui = uiFor(kind);
     XLSX.writeFile(wb, `${kind}_${ui.from}_${ui.to}.xlsx`);
   }
+
+  // واجهة مشتركة لباقي الصفحات (تقرير البصمة / التقارير)
+  window.APP = { state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS };
 
   // =========================================================
   // البداية
