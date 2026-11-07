@@ -431,7 +431,6 @@
           <label class="wide">${esc(k.textLabel)}
             <input id="q-text" ${k.reasons ? 'list="reasons-list"' : ""} placeholder="${k.reasons ? "اختر سببًا مقترحًا أو اكتب السبب" : "اختياري"}">
           </label>
-          <label>مرفق (اختياري) <input type="file" id="q-file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"></label>
           <div class="quick-actions"><button class="btn btn-primary btn-block" type="submit" id="q-save">💾 حفظ</button></div>
         </form>
         ${k.reasons ? `<datalist id="reasons-list">${k.reasons.map((r) => `<option value="${esc(r)}">`).join("")}</datalist>` : ""}
@@ -498,14 +497,12 @@
       try {
         const rec = { employee_id: emp.id, [k.typeCol]: type, start_date: from, end_date: to, [k.textCol]: text, created_by: userName() };
         if (k.hasStatus) rec.status = "معتمدة";
-        const file = $("#q-file").files[0];
-        if (file) { rec.attachment_name = file.name; rec.attachment_path = await DB.upload(k.folder, emp.id, file); }
         const [saved] = await DB.insert(k.table, [rec]);
         state.data[kind] = [...(state.data[kind] || []), saved];
         ui.rows.push(...buildRows(kind, [saved]));
         toast(`✅ تم حفظ (${type}) لـ ${emp.name} — ${daysBetween(from, to)} يوم — رقم ${saved[k.key]}`, "ok");
         combo.reset();
-        $("#q-text").value = ""; $("#q-file").value = "";
+        $("#q-text").value = "";
         ui.page = 0;
         refreshTable();
       } catch (e) {
@@ -621,7 +618,7 @@
           <td class="c-days num">${daysBetween(r.cur.start_date, r.cur.end_date)}</td>
           ${k.hasStatus ? `<td class="c-status"><select data-f="status">${(r.cur.status && !LEAVE_STATUSES.includes(r.cur.status) ? [r.cur.status, ...LEAVE_STATUSES] : LEAVE_STATUSES).map((s) => `<option ${s === r.cur.status ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></td>` : ""}
           <td><input data-f="text" value="${esc(r.cur.text)}" ${k.reasons ? 'list="reasons-list"' : ""}></td>
-          <td class="c-att">${r.isNew ? "" : `<button class="btn btn-ghost btn-sm att-btn" type="button" title="${r.attName ? esc(r.attName) : "إرفاق ملف"}">${r.attPath ? "📎" : "＋"}</button>`}</td>
+          <td class="c-att">${r.isNew || !r.attPath ? "" : `<button class="btn btn-ghost btn-sm att-btn" type="button" title="${esc(r.attName || "المرفق")}">📎</button>`}</td>
           <td class="c-del"><button class="btn-danger-ghost del-btn" type="button" title="${r.isDeleted ? "تراجع عن الحذف" : "حذف"}">${r.isDeleted ? "↩️" : "🗑️"}</button></td>
         </tr>`;
       }).join("") : `<tr class="empty-row"><td colspan="12">لا توجد سجلات ضمن الشروط المحددة</td></tr>`;
@@ -756,29 +753,7 @@
       <div class="stack">
         <div><b>${esc(emp ? emp.name : row.name)}</b> — <span class="tag">${esc(row.cur.type)}</span> ${esc(fmtDate(row.cur.start_date))}</div>
         <div id="att-view">${row.attPath ? '<span class="muted">جاري فتح المرفق...</span>' : '<span class="muted">لا يوجد مرفق لهذا السجل.</span>'}</div>
-        <label>${row.attPath ? "استبدال المرفق" : "إرفاق ملف"} <input type="file" id="att-file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"></label>
-        <button class="btn btn-primary" id="att-save" disabled>💾 حفظ المرفق</button>
       </div>`);
-    $("#att-file").addEventListener("change", () => { $("#att-save").disabled = !$("#att-file").files[0]; });
-    $("#att-save").addEventListener("click", async () => {
-      const file = $("#att-file").files[0];
-      if (!file) return;
-      $("#att-save").disabled = true; $("#att-save").textContent = "جاري الرفع...";
-      try {
-        const path = await DB.upload(k.folder, row.cur.employee_id, file);
-        await DB.update(k.table, k.key, row.id, { attachment_name: file.name, attachment_path: path });
-        row.attName = file.name; row.attPath = path;
-        const src = (state.data[kind] || []).find((x) => x[k.key] === row.id);
-        if (src) { src.attachment_name = file.name; src.attachment_path = path; }
-        row.orig.attachment_name = file.name; row.orig.attachment_path = path;
-        toast("✅ تم حفظ المرفق", "ok");
-        closeModal();
-        route();
-      } catch (e) {
-        toast("تعذّر رفع المرفق: " + errMsg(e), "bad");
-        $("#att-save").disabled = false; $("#att-save").textContent = "💾 حفظ المرفق";
-      }
-    });
     if (row.attPath) {
       const view = $("#att-view");
       if (!row.attPath.startsWith(ATTACH_PREFIX)) {
