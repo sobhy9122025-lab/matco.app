@@ -365,7 +365,6 @@
       </div>
       <h2>الحركة اليومية</h2>
       <div class="split ${parts.length > 1 ? "two" : ""}">${parts.map((p) => `<table class="compact mv"><thead>${head}</thead><tbody>${p.map(row).join("")}</tbody></table>`).join("")}</div>
-      <div class="sub" style="margin-top:4px">أيام السبت لا تُحتسب · أول بصمة = الوصول · آخر بصمة = المغادرة · كل بصمتين بينهما = خروج ثم عودة · داخل الشركة = مدة التواجد − الخروج.</div>
       <h2>الملخص</h2>
       <div class="boxes">
         ${box("عدد الأيام", r.dayCount)}${box("داخل الشركة", minToHM(r.totInside))}${box("المتوسط اليومي", minToHM(r.avgInside))}${box("مرات الخروج", r.exits)}
