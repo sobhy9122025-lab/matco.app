@@ -94,6 +94,7 @@
     const A = window.APP;
     const byEmp = new Map();
     for (const r of rows) {
+      if (dow(r.date) === 6) continue; // يوم السبت لا يدخل في الدخول والخروج
       if (!byEmp.has(r.id)) byEmp.set(r.id, { id: r.id, nameAtt: r.name, deptAtt: r.dept, days: new Map() });
       const e = byEmp.get(r.id);
       if (!e.days.has(r.date)) e.days.set(r.date, []);
@@ -145,7 +146,7 @@
             <button class="btn btn-primary btn-block" id="mv-run" ${view.lastFile ? "" : "disabled"}>🔄 إعادة الحساب</button>
           </div>
         </div>
-        <div class="rules-note">📌 طريقة الحساب: أول بصمة = الوصول · آخر بصمة = المغادرة · كل بصمتين بينهما = خروج ثم عودة · البصمات المكررة خلال دقيقتين تُحسب مرة واحدة · «أثناء الدوام» = الجزء الواقع بين ${esc(A.settings().start)} و ${esc(R.DEFAULT_END)} (رمضان ${R.RAMADAN.start} – ${R.RAMADAN.end}).</div>
+        <div class="rules-note">📌 طريقة الحساب: أول بصمة = الوصول · آخر بصمة = المغادرة · كل بصمتين بينهما = خروج ثم عودة · البصمات المكررة خلال دقيقتين تُحسب مرة واحدة · أيام السبت لا تُحتسب · «أثناء الدوام» = الجزء الواقع بين ${esc(A.settings().start)} و ${esc(R.DEFAULT_END)} (رمضان ${R.RAMADAN.start} – ${R.RAMADAN.end}).</div>
       </div>
       <div id="mv-results"></div>`;
 
@@ -364,7 +365,7 @@
       </div>
       <h2>الحركة اليومية</h2>
       <div class="split ${parts.length > 1 ? "two" : ""}">${parts.map((p) => `<table class="compact mv"><thead>${head}</thead><tbody>${p.map(row).join("")}</tbody></table>`).join("")}</div>
-      <div class="sub" style="margin-top:4px">أول بصمة = الوصول · آخر بصمة = المغادرة · كل بصمتين بينهما = خروج ثم عودة · داخل الشركة = مدة التواجد − الخروج.</div>
+      <div class="sub" style="margin-top:4px">أيام السبت لا تُحتسب · أول بصمة = الوصول · آخر بصمة = المغادرة · كل بصمتين بينهما = خروج ثم عودة · داخل الشركة = مدة التواجد − الخروج.</div>
       <h2>الملخص</h2>
       <div class="boxes">
         ${box("عدد الأيام", r.dayCount)}${box("داخل الشركة", minToHM(r.totInside))}${box("المتوسط اليومي", minToHM(r.avgInside))}${box("مرات الخروج", r.exits)}
