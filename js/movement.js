@@ -73,7 +73,10 @@
     const win = workWindow(date);
     const off = dow(date) === 5 || !!holidayOf(date);
     const d = { date, raw: sorted.length, punches: ps, win, off, arrive: ps[0], leave: ps.length > 1 ? ps[ps.length - 1] : null,
-      exits: [], unmatched: null, span: 0, outside: 0, outsideShift: 0, inside: 0, incomplete: ps.length < 2 };
+      exits: [], unmatched: null, span: 0, outside: 0, outsideShift: 0, inside: 0, incomplete: ps.length < 2, late: 0, early: 0, delay: 0 };
+    // تأخير الوصول: بعد بداية الدوام + دقائق السماح (نفس قاعدة تقرير البصمة)
+    const limit = win.start + (+window.APP.settings().grace || 0) * 60;
+    if (!off && ps[0] > limit) d.late = Math.floor((ps[0] - limit) / 60);
     if (ps.length >= 2) {
       const mid = ps.slice(1, -1);
       for (let i = 0; i + 1 < mid.length; i += 2) {
@@ -86,7 +89,9 @@
       d.outside = d.exits.reduce((s, x) => s + x.min, 0);
       d.outsideShift = d.exits.reduce((s, x) => s + x.shiftMin, 0);
       d.inside = d.span - d.outside;
+      if (!off && d.leave < win.end) d.early = Math.floor((win.end - d.leave) / 60);
     }
+    d.delay = d.late + d.early + d.outsideShift; // إجمالي تأخيرات اليوم
     return d;
   }
 
@@ -111,6 +116,8 @@
         id: e.id, name: emp.name || e.nameAtt, nameEn: emp.nameEn || "", dept: emp.dept || e.deptAtt, job: emp.job || "", inEmployees: !!emp.id,
         days, from: days[0].date, to: days[days.length - 1].date,
         dayCount: days.length, totInside: sum("inside", insideDays), avgInside: insideDays.length ? Math.round(sum("inside", insideDays) / insideDays.length) : 0,
+        totLate: sum("late"), totEarly: sum("early"), totDelay: sum("delay"),
+        lateDays: days.filter((d) => d.late).length, earlyDays: days.filter((d) => d.early).length, delayDays: days.filter((d) => d.delay).length,
         totOutside: sum("outside"), totOutsideShift: sum("outsideShift"), exits: days.reduce((s, d) => s + d.exits.length, 0),
         exitDays: days.filter((d) => d.exits.length).length, incompleteDays: days.filter((d) => d.incomplete).length,
         rawPunches: sum("raw"), usedPunches: days.reduce((s, d) => s + d.punches.length, 0), full: full.length,
@@ -201,6 +208,7 @@
         <div class="kpi bad"><div class="v num">${minToHM(t("totOutside"))}</div><div class="l">🚶 إجمالي الخروج</div></div>
         <div class="kpi bad"><div class="v num">${minToHM(t("totOutsideShift"))}</div><div class="l">منه أثناء الدوام</div></div>
         <div class="kpi warn"><div class="v num">${t("exits")}</div><div class="l">مرات الخروج</div></div>
+        <div class="kpi bad"><div class="v num">${minToHM(t("totDelay"))}</div><div class="l">🧾 إجمالي التأخيرات</div></div>
       </div>
       <div class="card">
         <div class="table-toolbar">
@@ -213,7 +221,7 @@
           </div>
         </div>
         <div class="table-wrap"><table class="grid view-grid"><thead><tr>
-          <th>الرقم</th><th>الاسم</th><th>القسم</th><th>الأيام</th><th>داخل الشركة</th><th>المتوسط اليومي</th><th>إجمالي الخروج</th><th>أثناء الدوام</th><th>مرات الخروج</th><th>بصمات ناقصة</th><th></th>
+          <th>الرقم</th><th>الاسم</th><th>القسم</th><th>الأيام</th><th>داخل الشركة</th><th>المتوسط اليومي</th><th>إجمالي الخروج</th><th>أثناء الدوام</th><th>مرات الخروج</th><th>تأخير الوصول</th><th>خروج مبكر</th><th>إجمالي التأخيرات</th><th>بصمات ناقصة</th><th></th>
         </tr></thead><tbody id="mv-body"></tbody></table></div>
       </div>`;
     if (sel) html += employeeView(sel);
@@ -228,7 +236,10 @@
             <td class="num">${r.dayCount}</td><td class="num">${minToHM(r.totInside)}</td><td class="num">${minToHM(r.avgInside)}</td>
             <td class="num ${r.totOutside ? "txt-bad" : ""}">${r.totOutside ? minToHM(r.totOutside) : "—"}</td>
             <td class="num">${r.totOutsideShift ? minToHM(r.totOutsideShift) : "—"}</td>
-            <td class="num">${r.exits || "—"}</td><td class="num">${r.incompleteDays || "—"}</td>
+            <td class="num">${r.exits || "—"}</td>
+            <td class="num">${r.totLate ? minToHM(r.totLate) : "—"}</td><td class="num">${r.totEarly ? minToHM(r.totEarly) : "—"}</td>
+            <td class="num ${r.totDelay ? "txt-bad" : ""}"><b>${r.totDelay ? minToHM(r.totDelay) : "—"}</b></td>
+            <td class="num">${r.incompleteDays || "—"}</td>
             <td><button class="btn btn-sm">عرض</button></td></tr>`).join("");
       };
       fill();
@@ -250,6 +261,7 @@
 
   function employeeView(r) {
     const esc = window.APP.esc;
+    const v = (m, cls = "txt-bad") => (m ? `<span class="${cls}">${minToHM(m)}</span>` : "");
     return `
       <div id="mv-emp" class="stack-16">
         <div class="emp-hero card">
@@ -274,24 +286,28 @@
           <div class="kpi bad"><div class="v num">${minToHM(r.totOutside)}</div><div class="l">🚶 إجمالي الخروج</div></div>
           <div class="kpi bad"><div class="v num">${minToHM(r.totOutsideShift)}</div><div class="l">منه أثناء الدوام</div></div>
           <div class="kpi warn"><div class="v num">${r.exits}</div><div class="l">مرات الخروج (في ${r.exitDays} يوم)</div></div>
+          <div class="kpi warn"><div class="v num">${minToHM(r.totLate)}</div><div class="l">⏰ تأخير الوصول (${r.lateDays} يوم)</div></div>
+          <div class="kpi warn"><div class="v num">${minToHM(r.totEarly)}</div><div class="l">🚪 الخروج المبكر (${r.earlyDays} يوم)</div></div>
+          <div class="kpi bad"><div class="v num">${minToHM(r.totDelay)}</div><div class="l">🧾 إجمالي التأخيرات</div></div>
           ${r.incompleteDays ? `<div class="kpi warn"><div class="v num">${r.incompleteDays}</div><div class="l">⚠️ أيام فيها بصمة ناقصة</div></div>` : ""}
         </div>
         <div class="card">
           <div class="card-title">📅 الحركة اليومية</div>
           <div class="tl-legend"><span><i class="in"></i> داخل الشركة</span><span><i class="out"></i> خروج</span><span><i class="w"></i> وقت الدوام</span><span><i class="dot"></i> بصمة بدون مقابل</span></div>
           <div class="table-wrap"><table class="grid view-grid compact-grid"><thead><tr>
-            <th>اليوم</th><th>الوصول</th><th>المغادرة</th><th>البصمات</th><th>مدة التواجد</th><th>الخروج</th><th>داخل الشركة</th><th>فترات الخروج (خرج ← عاد)</th><th class="tl-col">اليوم بالكامل</th>
+            <th>اليوم</th><th>الوصول</th><th>المغادرة</th><th>تأخير الوصول</th><th>خروج مبكر</th><th>خروج أثناء الدوام</th><th>إجمالي التأخير</th><th>داخل الشركة</th><th>فترات الخروج (خرج ← عاد)</th><th class="tl-col">اليوم بالكامل</th>
           </tr></thead><tbody>${r.days.map((d) => `<tr class="${d.off ? "muted-row" : ""}">
             <td><b>${DAY_AR[dow(d.date)]}</b> <span class="muted num">${fmtD(d.date)}</span>${d.off ? ' <span class="tag">عطلة</span>' : ""}</td>
             <td class="num">${secToHM(d.arrive)}</td><td class="num">${d.leave != null ? secToHM(d.leave) : "—"}</td>
-            <td class="num" title="${d.raw} بصمة في الملف، بعد حذف المكرر ${d.punches.length}">${d.punches.length}${d.raw > d.punches.length ? ` <span class="muted">(${d.raw})</span>` : ""}</td>
-            <td class="num">${d.leave != null ? minToHM(d.span) : "—"}</td>
-            <td class="num ${d.outside ? "txt-bad" : ""}">${d.outside ? minToHM(d.outside) : ""}</td>
+            <td class="num">${v(d.late, "txt-warn")}</td><td class="num">${v(d.early, "txt-warn")}</td><td class="num">${v(d.outsideShift, "txt-warn")}</td>
+            <td class="num">${d.delay ? `<b class="txt-bad">${minToHM(d.delay)}</b>` : '<span class="txt-ok">✓</span>'}</td>
             <td class="num"><b>${d.leave != null ? minToHM(d.inside) : "—"}</b></td>
             <td>${chips(d, note(d))}</td>
             <td class="tl-col">${timeline(d)}</td></tr>`).join("")}
-          </tbody></table></div>
-          <p class="muted small-note">الرقم بين القوسين في عمود البصمات = عدد البصمات في الملف قبل حذف المكرر.</p>
+          </tbody><tfoot><tr><td><b>الإجمالي</b></td><td></td><td></td>
+            <td class="num"><b>${minToHM(r.totLate)}</b></td><td class="num"><b>${minToHM(r.totEarly)}</b></td><td class="num"><b>${minToHM(r.totOutsideShift)}</b></td>
+            <td class="num"><b class="txt-bad">${minToHM(r.totDelay)}</b></td><td class="num"><b>${minToHM(r.totInside)}</b></td><td></td><td class="tl-col"></td></tr></tfoot></table></div>
+          <p class="muted small-note">إجمالي التأخير لليوم = تأخير الوصول (بعد ${window.APP.esc(window.APP.settings().start)} + ${window.APP.settings().grace} دقيقة سماح) + الخروج المبكر (قبل ${R.DEFAULT_END}) + الخروج أثناء الدوام.</p>
         </div>
       </div>`;
   }
@@ -311,7 +327,11 @@
       "داخل الشركة": minToHM(r.totInside), "داخل الشركة (دقيقة)": r.totInside, "المتوسط اليومي": minToHM(r.avgInside),
       "إجمالي الخروج": minToHM(r.totOutside), "إجمالي الخروج (دقيقة)": r.totOutside,
       "الخروج أثناء الدوام": minToHM(r.totOutsideShift), "الخروج أثناء الدوام (دقيقة)": r.totOutsideShift,
-      "مرات الخروج": r.exits, "أيام فيها خروج": r.exitDays, "أيام فيها بصمة ناقصة": r.incompleteDays,
+      "مرات الخروج": r.exits, "أيام فيها خروج": r.exitDays,
+      "تأخير الوصول": minToHM(r.totLate), "تأخير الوصول (دقيقة)": r.totLate, "أيام التأخير": r.lateDays,
+      "الخروج المبكر": minToHM(r.totEarly), "الخروج المبكر (دقيقة)": r.totEarly, "أيام الخروج المبكر": r.earlyDays,
+      "إجمالي التأخيرات": minToHM(r.totDelay), "إجمالي التأخيرات (دقيقة)": r.totDelay,
+      "أيام فيها بصمة ناقصة": r.incompleteDays,
     })), "الملخص");
     const daily = [], exits = [];
     for (const r of list) for (const d of r.days) {
@@ -322,6 +342,8 @@
         "مدة التواجد": d.leave != null ? minToHM(d.span) : "", "الخروج": minToHM(d.outside), "الخروج أثناء الدوام": minToHM(d.outsideShift),
         "داخل الشركة": d.leave != null ? minToHM(d.inside) : "", "داخل الشركة (دقيقة)": d.leave != null ? d.inside : "",
         "مرات الخروج": d.exits.length,
+        "تأخير الوصول (دقيقة)": d.late, "الخروج المبكر (دقيقة)": d.early, "الخروج أثناء الدوام (دقيقة)": d.outsideShift,
+        "إجمالي التأخير": minToHM(d.delay), "إجمالي التأخير (دقيقة)": d.delay,
         "ملاحظة": d.leave == null ? "بصمة واحدة فقط" : d.unmatched != null ? `بصمة بدون مقابل ${secToHM(d.unmatched)}` : d.off ? "عطلة" : "",
       });
       for (const x of d.exits) exits.push({
@@ -337,7 +359,8 @@
   // ---------------- PDF ----------------
   const EXTRA_CSS = `<style>
     .mv td, .mv th { text-align: center; } .mv .c-d, .mv .nm { text-align: start; } .mv .c-e { text-align: start; white-space: normal; }
-    .mv td.red { color: #b91c1c; font-weight: 700; } .mv td.warn { color: #b45309; font-size: 8.5px; }
+    .mv td.red { color: #b91c1c; font-weight: 700; } .mv td.ok { color: #15803d; }
+    .mv tfoot td { background: #eef2ff !important; font-weight: 800; border-top: 2px solid #1e3a8a; } .mv td.warn { color: #b45309; font-size: 8.5px; }
   </style>`;
   const P = () => window.PRINT;
   const box = (l, v, cls = "") => `<div class="box ${cls}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
@@ -346,17 +369,21 @@
 
   function employeeReport(r) {
     const esc = window.APP.esc;
+    const pv = (m) => (m ? minToHM(m) : "");
     const row = (d) => `<tr>
       <td class="c-d"><b>${DAY_AR[dow(d.date)]}</b> ${fmtD(d.date).slice(0, 5)}</td>
       <td>${secToHM(d.arrive)}</td><td>${d.leave != null ? secToHM(d.leave) : "—"}</td>
       <td class="c-e">${d.exits.map((x) => `<span dir="rtl"><span>${secToHM(x.from)}</span> ← <span>${secToHM(x.to)}</span></span>`).join(" ، ")}${d.leave == null ? '<span class="warn">بصمة واحدة</span>' : d.unmatched != null ? ` <span class="warn">بصمة بدون مقابل ${secToHM(d.unmatched)}</span>` : ""}</td>
-      <td class="${d.outside ? "red" : ""}">${d.outside ? minToHM(d.outside) : ""}</td>
+      <td>${pv(d.late)}</td><td>${pv(d.early)}</td><td>${pv(d.outsideShift)}</td>
+      <td class="${d.delay ? "red" : "ok"}">${d.delay ? minToHM(d.delay) : "✓"}</td>
       <td><b>${d.leave != null ? minToHM(d.inside) : "—"}</b></td></tr>`;
-    const head = `<tr><th class="c-d">اليوم</th><th>الوصول</th><th>المغادرة</th><th class="c-e">فترات الخروج (خرج ← عاد)</th><th>الخروج</th><th>داخل الشركة</th></tr>`;
+    const head = `<tr><th class="c-d">اليوم</th><th>الوصول</th><th>المغادرة</th><th class="c-e">فترات الخروج (خرج ← عاد)</th><th>تأخير الوصول</th><th>خروج مبكر</th><th>خروج أثناء الدوام</th><th>إجمالي التأخير</th><th>داخل الشركة</th></tr>`;
+    const foot = `<tr class="tot"><td class="c-d">الإجمالي</td><td></td><td></td><td class="c-e"></td><td>${minToHM(r.totLate)}</td><td>${minToHM(r.totEarly)}</td><td>${minToHM(r.totOutsideShift)}</td><td class="red">${minToHM(r.totDelay)}</td><td>${minToHM(r.totInside)}</td></tr>`;
     const half = Math.ceil(r.days.length / 2);
-    const parts = r.days.length > 16 ? [r.days.slice(0, half), r.days.slice(half)] : [r.days];
+    const parts = [r.days]; // جدول واحد بعرض الصفحة (التقرير التفصيلي)
+    void half;
     return `<section class="report" dir="rtl">
-      ${header("تقرير الدخول والخروج", `الفترة: ${fmtD(r.from)} — ${fmtD(r.to)}`)}
+      ${header("تقرير الدخول والخروج التفصيلي", `الفترة: ${fmtD(r.from)} — ${fmtD(r.to)}`)}
       <div class="info">
         <div><b>الاسم:</b> ${esc(r.name || "—")}${r.nameEn ? ` <span class="sub">(${esc(r.nameEn)})</span>` : ""}</div>
         <div><b>الرقم الوظيفي:</b> ${esc(r.id)}</div>
@@ -364,11 +391,12 @@
         <div><b>الوظيفة:</b> ${esc(r.job || "—")}</div>
       </div>
       <h2>الحركة اليومية</h2>
-      <div class="split ${parts.length > 1 ? "two" : ""}">${parts.map((p) => `<table class="compact mv"><thead>${head}</thead><tbody>${p.map(row).join("")}</tbody></table>`).join("")}</div>
+      <div class="split ${parts.length > 1 ? "two" : ""}">${parts.map((p) => `<table class="compact mv"><thead>${head}</thead><tbody>${p.map(row).join("")}</tbody><tfoot>${foot}</tfoot></table>`).join("")}</div>
       <h2>الملخص</h2>
       <div class="boxes">
         ${box("عدد الأيام", r.dayCount)}${box("داخل الشركة", minToHM(r.totInside))}${box("المتوسط اليومي", minToHM(r.avgInside))}${box("مرات الخروج", r.exits)}
-        ${box("إجمالي الخروج", minToHM(r.totOutside), "hl")}${box("الخروج أثناء الدوام", minToHM(r.totOutsideShift), "hl")}${r.incompleteDays ? box("أيام فيها بصمة ناقصة", r.incompleteDays) : ""}
+        ${box("تأخير الوصول", `${minToHM(r.totLate)} <small>(${r.lateDays} يوم)</small>`)}${box("الخروج المبكر", `${minToHM(r.totEarly)} <small>(${r.earlyDays} يوم)</small>`)}${box("الخروج أثناء الدوام", minToHM(r.totOutsideShift))}${box("إجمالي التأخيرات", minToHM(r.totDelay), "hl")}
+        ${r.incompleteDays ? box("أيام فيها بصمة ناقصة", r.incompleteDays) : ""}
       </div>
       <div class="recs"><b>توصيات المدير المباشر</b><i></i><i></i><i></i></div>
       <div class="signs"><div>توقيع الموظف<span></span></div><div>توقيع المدير المباشر<span></span></div></div>
@@ -386,13 +414,14 @@
     const body = `<section class="report" dir="rtl">
       ${header("ملخص الدخول والخروج المتعدد", `الفترة: ${fmtD(list.reduce((m, r) => (r.from < m ? r.from : m), list[0].from))} — ${fmtD(list.reduce((m, r) => (r.to > m ? r.to : m), list[0].to))} · عدد الموظفين ${list.length}`)}
       <div class="boxes">
-        ${box("داخل الشركة", minToHM(t("totInside")))}${box("إجمالي الخروج", minToHM(t("totOutside")), "hl")}${box("الخروج أثناء الدوام", minToHM(t("totOutsideShift")), "hl")}${box("مرات الخروج", t("exits"))}
+        ${box("داخل الشركة", minToHM(t("totInside")))}${box("إجمالي الخروج", minToHM(t("totOutside")), "hl")}${box("الخروج أثناء الدوام", minToHM(t("totOutsideShift")), "hl")}${box("مرات الخروج", t("exits"))}${box("إجمالي التأخيرات", minToHM(t("totDelay")), "hl")}
       </div>
       <h2>الموظفون <span class="sub">(مرتبون حسب الأكثر خروجًا)</span></h2>
-      <table class="mv"><thead><tr><th style="width:60px">الرقم</th><th class="nm" style="width:24%">الاسم</th><th>القسم</th><th>الأيام</th><th>داخل الشركة</th><th>المتوسط اليومي</th><th>إجمالي الخروج</th><th>أثناء الدوام</th><th>مرات الخروج</th><th>بصمات ناقصة</th></tr></thead>
+      <table class="mv"><thead><tr><th style="width:60px">الرقم</th><th class="nm" style="width:24%">الاسم</th><th>القسم</th><th>الأيام</th><th>داخل الشركة</th><th>المتوسط اليومي</th><th>إجمالي الخروج</th><th>أثناء الدوام</th><th>مرات الخروج</th><th>تأخير الوصول</th><th>خروج مبكر</th><th>إجمالي التأخيرات</th><th>بصمات ناقصة</th></tr></thead>
       <tbody>${list.map((r) => `<tr><td>${esc(r.id)}</td><td class="nm">${esc(r.name || "—")}</td><td>${esc(r.dept || "")}</td><td>${r.dayCount}</td>
         <td>${minToHM(r.totInside)}</td><td>${minToHM(r.avgInside)}</td><td class="${r.totOutside ? "red" : ""}">${r.totOutside ? minToHM(r.totOutside) : "—"}</td>
-        <td>${r.totOutsideShift ? minToHM(r.totOutsideShift) : "—"}</td><td>${r.exits || "—"}</td><td>${r.incompleteDays || "—"}</td></tr>`).join("")}</tbody></table>
+        <td>${r.totOutsideShift ? minToHM(r.totOutsideShift) : "—"}</td><td>${r.exits || "—"}</td>
+        <td>${r.totLate ? minToHM(r.totLate) : "—"}</td><td>${r.totEarly ? minToHM(r.totEarly) : "—"}</td><td class="${r.totDelay ? "red" : ""}">${r.totDelay ? minToHM(r.totDelay) : "—"}</td><td>${r.incompleteDays || "—"}</td></tr>`).join("")}</tbody></table>
       ${footer()}
     </section>`;
     P().openPrintWindow(EXTRA_CSS + body, "ar", "ملخص الدخول والخروج", true);
