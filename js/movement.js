@@ -362,13 +362,14 @@
         <div><b>القسم:</b> ${esc(r.dept || "—")}</div>
         <div><b>الوظيفة:</b> ${esc(r.job || "—")}</div>
       </div>
+      <h2>الحركة اليومية</h2>
+      <div class="split ${parts.length > 1 ? "two" : ""}">${parts.map((p) => `<table class="compact mv"><thead>${head}</thead><tbody>${p.map(row).join("")}</tbody></table>`).join("")}</div>
+      <div class="sub" style="margin-top:4px">أول بصمة = الوصول · آخر بصمة = المغادرة · كل بصمتين بينهما = خروج ثم عودة · داخل الشركة = مدة التواجد − الخروج.</div>
+      <h2>الملخص</h2>
       <div class="boxes">
         ${box("عدد الأيام", r.dayCount)}${box("داخل الشركة", minToHM(r.totInside))}${box("المتوسط اليومي", minToHM(r.avgInside))}${box("مرات الخروج", r.exits)}
         ${box("إجمالي الخروج", minToHM(r.totOutside), "hl")}${box("الخروج أثناء الدوام", minToHM(r.totOutsideShift), "hl")}${r.incompleteDays ? box("أيام فيها بصمة ناقصة", r.incompleteDays) : ""}
       </div>
-      <h2>الحركة اليومية</h2>
-      <div class="split ${parts.length > 1 ? "two" : ""}">${parts.map((p) => `<table class="compact mv"><thead>${head}</thead><tbody>${p.map(row).join("")}</tbody></table>`).join("")}</div>
-      <div class="sub" style="margin-top:4px">أول بصمة = الوصول · آخر بصمة = المغادرة · كل بصمتين بينهما = خروج ثم عودة · داخل الشركة = مدة التواجد − الخروج.</div>
       <div class="recs"><b>توصيات المدير المباشر</b><i></i><i></i><i></i></div>
       <div class="signs"><div>توقيع الموظف<span></span></div><div>توقيع المدير المباشر<span></span></div></div>
       ${footer()}
