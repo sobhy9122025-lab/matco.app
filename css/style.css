@@ -421,3 +421,21 @@ td.actions > .btn { margin: 2px; }
 .app-footer { display: flex; justify-content: center; padding: 6px 20px 18px; }
 .login-sig { display: flex; justify-content: center; margin-top: 6px; }
 .login-sig .sig-card { box-shadow: none; background: var(--soft); }
+
+/* ---------- الدخول والخروج المتعدد ---------- */
+.txt-warn { color: var(--warn); font-weight: 700; }
+.muted-row td { opacity: .65; }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 4px; max-width: 100%; }
+.chips .tag { white-space: normal; }
+.exit-chip { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tl-col { min-width: 170px; width: 20%; }
+.tl { position: relative; width: 100%; min-width: 140px; height: 12px; border-radius: 6px; background: var(--soft); border: 1px solid var(--line); overflow: hidden; }
+.tl i { position: absolute; top: 0; bottom: 0; }
+.tl i.w { background: var(--line); }
+.tl i.in { background: var(--primary); top: 2px; bottom: 2px; border-radius: 3px; }
+.tl i.out { background: var(--bad); top: 2px; bottom: 2px; border-radius: 3px; }
+.tl i.dot { background: var(--warn); top: 1px; bottom: 1px; width: 3px !important; border-radius: 2px; }
+.tl-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.tl-legend i { display: inline-block; width: 18px; height: 8px; border-radius: 3px; vertical-align: middle; margin-inline-end: 4px; }
+.tl-legend i.in { background: var(--primary); } .tl-legend i.out { background: var(--bad); } .tl-legend i.w { background: var(--line); } .tl-legend i.dot { background: var(--warn); width: 4px; }
+.perm-btn.on { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }

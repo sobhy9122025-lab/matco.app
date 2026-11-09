@@ -264,11 +264,14 @@
       try {
         const users = await A.DB.rpc("admin_list_users");
         const me = (A.state.user?.email || "").toLowerCase();
+        const mvUsers = A.movementUsers();
         box.innerHTML = `<div class="table-wrap"><table class="grid view-grid"><thead><tr>
-            <th>اسم المستخدم</th><th>الصلاحية</th><th>تاريخ الإنشاء</th><th>آخر دخول</th><th>الإجراءات</th></tr></thead><tbody>
+            <th>اسم المستخدم</th><th>الصلاحية</th><th>🚶 الدخول والخروج</th><th>تاريخ الإنشاء</th><th>آخر دخول</th><th>الإجراءات</th></tr></thead><tbody>
           ${users.map((u) => { const isMe = String(u.email).toLowerCase() === me; return `<tr data-email="${esc(u.email)}">
             <td class="nm"><b>${esc(short(u.email))}</b>${isMe ? ' <span class="tag">أنت</span>' : ""}</td>
             <td><span class="tag ${u.is_admin ? "warn-tag" : ""}">${u.is_admin ? "مدير" : "مستخدم"}</span></td>
+            <td>${u.is_admin ? '<span class="tag ok-tag">✓ متاحة (مدير)</span>'
+              : `<button class="btn btn-sm perm-btn ${mvUsers.includes(String(u.email).toLowerCase()) ? "on" : ""}" data-act="mv" title="إظهار تبويب الدخول والخروج المتعدد لهذا المستخدم أو إخفاؤه">${mvUsers.includes(String(u.email).toLowerCase()) ? "✓ متاحة — إلغاء" : "＋ منح الصلاحية"}</button>`}</td>
             <td class="num">${fmtDT(u.created_at)}</td><td class="num">${fmtDT(u.last_sign_in_at)}</td>
             <td class="actions">
               <button class="btn btn-sm" data-act="pass">🔑 كلمة المرور</button>
@@ -302,7 +305,14 @@
       const btn = ev.target.closest("[data-act]"); if (!btn) return;
       const email = btn.closest("tr").dataset.email;
       try {
-        if (btn.dataset.act === "pass") {
+        if (btn.dataset.act === "mv") {
+          const em = String(email).toLowerCase();
+          const cur = A.movementUsers();
+          const next = cur.includes(em) ? cur.filter((x) => x !== em) : [...cur, em];
+          await A.DB.saveSettings({ movement_users: JSON.stringify(next) }, A.userName());
+          A.state.settings.movement_users = JSON.stringify(next);
+          A.toast(cur.includes(em) ? `تم إخفاء تبويب الدخول والخروج عن ${short(email)}` : `✅ أصبح تبويب الدخول والخروج متاحًا لـ ${short(email)}`, "ok");
+        } else if (btn.dataset.act === "pass") {
           const p = prompt(`كلمة المرور الجديدة للمستخدم ${short(email)} (6 أحرف على الأقل):`);
           if (p == null) return;
           if (p.length < 6) return A.toast("كلمة المرور يجب ألا تقل عن 6 أحرف", "bad");

@@ -200,6 +200,7 @@
       try { state.isAdmin = DB.isAdmin ? await DB.isAdmin() : false; } catch (_) { state.isAdmin = false; }
       try { state.settings = DB.getSettings ? await DB.getSettings() : {}; } catch (_) { state.settings = {}; }
       $("#nav-settings").hidden = !state.isAdmin;
+      $("#nav-movement").hidden = !canMovement();
     } catch (e) {
       $("#conn-status").textContent = "تعذّر الاتصال: " + errMsg(e);
       $("#conn-status").className = "brand-sub bad";
@@ -239,6 +240,7 @@
     state.user = null;
     state.isAdmin = false;
     $("#nav-settings").hidden = true;
+    $("#nav-movement").hidden = true;
     state.data = { leaves: null, absences: null };
     state.ui = {};
     showLogin();
@@ -265,6 +267,15 @@
   }
   window.addEventListener("beforeunload", (e) => { if (hasPendingChanges()) { e.preventDefault(); e.returnValue = ""; } });
   window.addEventListener("hashchange", route);
+
+  // صفحة الدخول والخروج المتعدد: للمدير، وللمستخدمين الذين يحددهم المدير في الإعدادات
+  function movementUsers() {
+    try { const v = JSON.parse(state.settings.movement_users || "[]"); return Array.isArray(v) ? v.map((x) => String(x).toLowerCase()) : []; }
+    catch (_) { return []; }
+  }
+  function canMovement() {
+    return !!state.user && (state.isAdmin || movementUsers().includes(String(state.user.email || "").toLowerCase()));
+  }
 
   function route() {
     if (!state.user) return;
@@ -854,7 +865,7 @@
   window.APP = {
     state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS,
     async reloadEmployees() { await loadEmployees(); showConnStatus(); },
-    employeeCombo, hasPendingChanges, userName,
+    employeeCombo, hasPendingChanges, userName, movementUsers, canMovement,
     // إعدادات الدوام (من قاعدة البيانات، وإلا القيم الافتراضية في rules.js)
     settings() {
       const R = window.ATT_RULES || {};

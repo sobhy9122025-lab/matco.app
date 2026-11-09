@@ -684,14 +684,14 @@
       .recs b { display: block; color: #1e3a8a; font-size: 11px; margin-bottom: 2px; }
       .recs i { display: block; height: 22px; border-bottom: 1px dotted #94a3b8; }
       /* التذييل (تاريخ الطباعة والتوقيع الشخصي) في أسفل الورقة تمامًا */
-      .report { display: flex; flex-direction: column; min-height: 277mm; }
+      .report { display: flex; flex-direction: column; min-height: ${landscape ? "190mm" : "277mm"}; }
       footer { margin-top: auto; padding-top: 6px; color: #94a3b8; font-size: 9px; text-align: center; border-top: 1px solid #e2e8f0; }
       .report > :nth-last-child(2) { margin-bottom: 24px; }
       ${window.SIGNATURE ? window.SIGNATURE.PRINT_CSS : ""}
       @media print {
         html, body { background: #fff; }
         .toolbar { display: none; }
-        .report { width: auto; margin: 0; padding: 0; box-shadow: none; min-height: 276mm; }
+        .report { width: auto; margin: 0; padding: 0; box-shadow: none; min-height: ${landscape ? "189mm" : "276mm"}; }
       }`;
     const html = `<!doctype html><html lang="${lang}" dir="${T.dir}"><head><meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1"><title>${window.APP.esc(title)}</title>
