@@ -541,7 +541,7 @@
       deficit: "إجمالي التأخيرات", withExcuse: "منها بعذر", over: "الإضافي", net: "الصافي", secDetails: "التأخير والخروج المبكر", secAbs: "الغياب", secExc: "التسجيلات والأعذار", effect: "الأثر",
       secLeaves: "الإجازات المعتمدة", day: "اليوم", date: "التاريخ", first: "أول بصمة", last: "آخر بصمة", worked: "ساعات العمل", late: "التأخير",
       early: "الخروج المبكر", excuse: "العذر", type: "النوع", reason: "السبب", from: "من", to: "إلى", none: "لا يوجد",
-      printed: "تاريخ الطباعة", empSign: "توقيع الموظف", mgrSign: "توقيع المدير المباشر", mgrRec: "توصيات المدير المباشر", days: DAY_AR,
+      printed: "تاريخ الطباعة", empSign: "توقيع الموظف", mgrSign: "توقيع المدير المباشر", mgrRec: "توصيات المدير المباشر", secSummary: "الملخص", days: DAY_AR,
       typeName: (t) => t,
     },
     en: {
@@ -552,7 +552,7 @@
       deficit: "Total Deficit", withExcuse: "excused", over: "Overtime", net: "Net", secDetails: "Late Arrival & Early Leave", secAbs: "Absences", secExc: "Registered Excuses", effect: "Effect",
       secLeaves: "Approved Leaves", day: "Day", date: "Date", first: "First In", last: "Last Out", worked: "Worked", late: "Late",
       early: "Early Leave", excuse: "Excuse", type: "Type", reason: "Reason", from: "From", to: "To", none: "None",
-      printed: "Printed on", empSign: "Employee Signature", mgrSign: "Line Manager Signature", mgrRec: "Line Manager Recommendations", days: DAY_EN,
+      printed: "Printed on", empSign: "Employee Signature", mgrSign: "Line Manager Signature", mgrRec: "Line Manager Recommendations", secSummary: "Summary", days: DAY_EN,
       typeName: (t) => ({
         "غياب بإذن": "Excused absence", "غياب بدون إذن": "Unexcused absence", "غياب بدون إذن (غير مسجل)": "Unexcused (not registered)",
         "تأخير بعذر": "Excused late", "خروج مبكر بإذن": "Approved early leave", "أخرى": "Other",
@@ -608,12 +608,6 @@
         <div><b>${T.nat}:</b> ${esc(r.nat || "—")}</div>
         <div><b>${T.sched}:</b> ${r.satWork ? T.schedFri : T.schedFriSat} · <b>${T.rule}:</b> ${r.daily ? T.ruleDaily : T.ruleNormal}</div>
       </div>
-      <div class="boxes">
-        ${box(T.lateDays, r.lateDays)}${box(T.totLate, minToHM(r.totLate))}${box(T.earlyDays, r.earlyDays)}${box(T.totEarly, minToHM(r.totEarly))}
-        ${box(T.absDays, `${r.absences.length} <small>(${T.excused} ${r.excusedDays} · ${T.unexcused} ${unexcused})</small>`)}${box(T.leaves, r.leaveDays.length)}
-        ${r.daily ? box(T.over, minToHM(r.totOver)) + box(T.net, `<span dir="ltr">${minToHM(r.totOver - r.totLate - r.totEarly)}</span>`, "hl") : box(T.deficit, minToHM(r.totLate + r.totEarly) + (r.excLate + r.excEarly ? ` <small>(${T.withExcuse} ${minToHM(r.excLate + r.excEarly)})</small>` : ""), "hl")}
-      </div>
-
       <h2>${T.secDetails} <span class="sub">(${r.details.length})</span></h2>
       ${compactDetails(r, T)}
 
@@ -626,6 +620,12 @@
       <h2>${T.secLeaves}</h2>
       ${table([T.day, T.date, T.type], r.leaveDays.map((l) => [T.days[dow(l.date)], fmtD(l.date), esc(T.typeName(l.type))]))}
 
+      <h2>${T.secSummary}</h2>
+      <div class="boxes">
+        ${box(T.lateDays, r.lateDays)}${box(T.totLate, minToHM(r.totLate))}${box(T.earlyDays, r.earlyDays)}${box(T.totEarly, minToHM(r.totEarly))}
+        ${box(T.absDays, `${r.absences.length} <small>(${T.excused} ${r.excusedDays} · ${T.unexcused} ${unexcused})</small>`)}${box(T.leaves, r.leaveDays.length)}
+        ${r.daily ? box(T.over, minToHM(r.totOver)) + box(T.net, `<span dir="ltr">${minToHM(r.totOver - r.totLate - r.totEarly)}</span>`, "hl") : box(T.deficit, minToHM(r.totLate + r.totEarly) + (r.excLate + r.excEarly ? ` <small>(${T.withExcuse} ${minToHM(r.excLate + r.excEarly)})</small>` : ""), "hl")}
+      </div>
       <div class="recs"><b>${T.mgrRec}</b><i></i><i></i><i></i></div>
       <div class="signs"><div>${T.empSign}<span></span></div><div>${T.mgrSign}<span></span></div></div>
       <footer><span>${T.printed}: ${fmtD(new Date().toISOString().slice(0, 10))}</span>${window.SIGNATURE ? window.SIGNATURE.printHTML() : ""}</footer>
