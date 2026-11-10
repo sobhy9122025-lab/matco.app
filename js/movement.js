@@ -306,19 +306,19 @@
           <div class="table-wrap"><table class="grid view-grid compact-grid mv-grid"><thead>
             <tr class="grp"><th colspan="5">الحضور</th><th colspan="4" class="grp-bad">التأخيرات</th><th class="tl-col"></th></tr>
             <tr><th>اليوم</th><th>الوصول</th><th>المغادرة</th><th>داخل الشركة</th><th>فترات الخروج (خرج ← عاد)</th>
-            <th class="g1">تأخير الوصول</th><th>خروج مبكر</th><th>خروج أثناء الدوام</th><th>إجمالي اليوم</th><th class="tl-col">اليوم بالكامل</th></tr>
+            <th class="g1">تأخير الوصول</th><th>خروج مبكر</th><th>خروج أثناء الدوام</th><th>إجمالي التأخيرات والخروج المبكر</th><th class="tl-col">اليوم بالكامل</th></tr>
           </thead><tbody>${r.days.map((d) => `<tr class="${d.off ? "muted-row" : ""} ${d.delay ? "has-delay" : ""}">
             <td ${lab("اليوم")}><b>${DAY_AR[dow(d.date)]}</b> <span class="muted num">${fmtD(d.date).slice(0, 5)}</span>${d.off ? ' <span class="tag">عطلة</span>' : ""}</td>
             <td class="num" ${lab("الوصول")}>${secToHM(d.arrive)}</td><td class="num" ${lab("المغادرة")}>${d.leave != null ? secToHM(d.leave) : "—"}</td>
             <td class="num" ${lab("داخل الشركة")}><b>${d.leave != null ? minToHM(d.inside) : "—"}</b></td>
             <td ${lab("فترات الخروج")}>${chips(d, note(d))}</td>
             <td class="num g1" ${lab("تأخير الوصول")}>${v(d.late)}</td><td class="num" ${lab("خروج مبكر")}>${v(d.early)}</td><td class="num" ${lab("خروج أثناء الدوام")}>${v(d.outsideShift)}</td>
-            <td class="num" ${lab("إجمالي اليوم")}>${d.delay ? `<b class="txt-bad">${minToHM(d.delay)}</b>` : '<span class="txt-ok">✓</span>'}</td>
+            <td class="num" ${lab("إجمالي التأخيرات والخروج المبكر")}>${d.delay ? `<b class="txt-bad">${minToHM(d.delay)}</b>` : '<span class="txt-ok">✓</span>'}</td>
             <td class="tl-col" ${lab("اليوم بالكامل")}>${timeline(d)}</td></tr>`).join("")}
           </tbody><tfoot><tr><td><b>الإجمالي</b></td><td></td><td></td><td class="num"><b>${minToHM(r.totInside)}</b></td><td class="num">${r.exits} مرة</td>
             <td class="num g1"><b>${minToHM(r.totLate)}</b></td><td class="num"><b>${minToHM(r.totEarly)}</b></td><td class="num"><b>${minToHM(r.totOutsideShift)}</b></td>
             <td class="num"><b class="txt-bad">${minToHM(r.totDelay)}</b></td><td class="tl-col"></td></tr></tfoot></table></div>
-          <p class="muted small-note">إجمالي اليوم = تأخير الوصول (بعد ${esc(window.APP.settings().start)} + ${window.APP.settings().grace} دقيقة سماح) + الخروج المبكر (قبل ${R.DEFAULT_END}) + الخروج أثناء الدوام.</p>
+          <p class="muted small-note">إجمالي التأخيرات والخروج المبكر = تأخير الوصول (بعد ${esc(window.APP.settings().start)} + ${window.APP.settings().grace} دقيقة سماح) + الخروج المبكر (قبل ${R.DEFAULT_END}) + الخروج أثناء الدوام.</p>
         </div>
       </div>`;
   }
@@ -341,7 +341,7 @@
 
   // ورقة تقرير موظف واحد بنفس ترتيب تقرير PDF
   function employeeSheet(r) {
-    const H = ["التاريخ", "اليوم", "الوصول", "المغادرة", "داخل الشركة", "مرات الخروج", "فترات الخروج (خرج ← عاد)", "تأخير الوصول", "خروج مبكر", "خروج أثناء الدوام", "إجمالي التأخير", "ملاحظة"];
+    const H = ["التاريخ", "اليوم", "الوصول", "المغادرة", "داخل الشركة", "مرات الخروج", "فترات الخروج (خرج ← عاد)", "تأخير الوصول", "خروج مبكر", "خروج أثناء الدوام", "إجمالي التأخيرات والخروج المبكر", "ملاحظة"];
     const aoa = [
       ["تقرير الدخول والخروج التفصيلي"],
       ["الاسم", r.name || "", "", "الرقم الوظيفي", r.id, "", "القسم", r.dept || ""],
@@ -374,7 +374,7 @@
       const t = (k) => list.reduce((s, r) => s + r[k], 0);
       rows.push(["الإجمالي", "", "", t("dayCount"), xDur(t("totInside")), "", t("exits"), xDur(t("totLate")), t("lateDays"), xDur(t("totEarly")), t("earlyDays"), xDur(t("totOutsideShift")), xDur(t("totDelay")), t("incompleteDays")]);
       XLSX.utils.book_append_sheet(wb, sheetFrom([H, ...rows], [12, 28, 16, 10, 12, 12, 11, 12, 10, 12, 12, 14, 14, 14], { filter: `A1:N${rows.length}` }), "الملخص");
-      const D = ["الرقم الوظيفي", "الاسم", "التاريخ", "اليوم", "الوصول", "المغادرة", "داخل الشركة", "مرات الخروج", "فترات الخروج (خرج ← عاد)", "تأخير الوصول", "خروج مبكر", "خروج أثناء الدوام", "إجمالي التأخير", "ملاحظة"];
+      const D = ["الرقم الوظيفي", "الاسم", "التاريخ", "اليوم", "الوصول", "المغادرة", "داخل الشركة", "مرات الخروج", "فترات الخروج (خرج ← عاد)", "تأخير الوصول", "خروج مبكر", "خروج أثناء الدوام", "إجمالي التأخيرات والخروج المبكر", "ملاحظة"];
       const drows = [];
       for (const r of list) for (const d of r.days) drows.push([r.id, r.name || "", xDate(d.date), DAY_AR[dow(d.date)], xTime(d.arrive), xTime(d.leave),
         d.leave != null ? xDur(d.inside) : "", d.exits.length, exitsTxt(d), xDur(d.late), xDur(d.early), xDur(d.outsideShift), xDur(d.delay), noteTxt(d)]);
@@ -420,7 +420,7 @@
       <td class="g1 am">${pv(d.late)}</td><td class="am">${pv(d.early)}</td><td class="am">${pv(d.outsideShift)}</td>
       <td class="${d.delay ? "red" : "ok"}">${d.delay ? minToHM(d.delay) : "✓"}</td></tr>`;
     const head = `<tr class="grp"><th colspan="5">الحضور</th><th colspan="4" class="bad">التأخيرات</th></tr>
-      <tr><th class="c-d">اليوم</th><th>الوصول</th><th>المغادرة</th><th>داخل الشركة</th><th class="c-e">فترات الخروج (خرج ← عاد)</th><th class="g1">تأخير الوصول</th><th>خروج مبكر</th><th>خروج أثناء الدوام</th><th>إجمالي اليوم</th></tr>`;
+      <tr><th class="c-d">اليوم</th><th>الوصول</th><th>المغادرة</th><th>داخل الشركة</th><th class="c-e">فترات الخروج (خرج ← عاد)</th><th class="g1">تأخير الوصول</th><th>خروج مبكر</th><th>خروج أثناء الدوام</th><th>إجمالي التأخيرات والخروج المبكر</th></tr>`;
     const foot = `<tr><td class="c-d">الإجمالي</td><td></td><td></td><td>${minToHM(r.totInside)}</td><td class="c-e">${r.exits} مرة خروج</td><td class="g1">${minToHM(r.totLate)}</td><td>${minToHM(r.totEarly)}</td><td>${minToHM(r.totOutsideShift)}</td><td class="red">${minToHM(r.totDelay)}</td></tr>`;
     return `<section class="report" dir="rtl">
       ${header("تقرير الدخول والخروج التفصيلي", `الفترة: ${fmtD(r.from)} — ${fmtD(r.to)}`)}
