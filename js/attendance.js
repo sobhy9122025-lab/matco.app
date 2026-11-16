@@ -130,7 +130,7 @@
     const name = emp.name || rows.find((r) => r.nameAtt)?.nameAtt || "";
     const dept = emp.dept || rows.find((r) => r.deptAtt)?.deptAtt || "";
     const saudi = isSaudi(emp.nat);
-    const daily = isDailyHours(emp.rule);
+    const daily = false; // أُلغي حقل «طريقة الاحتساب»: كل الموظفين يُحسبون بالطريقة العادية
     // دوام السبت: محدد يدويًا للموظف (work / off)، وإلا تلقائي حسب الجنسية والبصمة
     const satRule = String(emp.sat || "").toLowerCase();
     const satWork = satRule === "work" ? true : satRule === "off" ? false : (!saudi && rows.some((r) => r.date && dow(r.date) === 6));
@@ -521,7 +521,6 @@
       "منها بعذر (دقيقة)": r.excLate + r.excEarly,
       "الإضافي (دقيقة)": r.totOver, "أيام الغياب": r.absences.length, "غياب بإذن": r.excusedDays,
       "غياب بدون إذن": r.absences.length - r.excusedDays, "إجازات معتمدة": r.leaveDays.length,
-      "طريقة الاحتساب": r.daily ? "ساعات يومية" : "عادي",
     }));
     const ws = XLSX.utils.json_to_sheet(out);
     ws["!cols"] = Object.keys(out[0]).map((h) => ({ wch: Math.max(12, h.length + 4) }));
@@ -606,7 +605,7 @@
         <div><b>${T.dept}:</b> ${esc(r.dept || "—")}</div>
         <div><b>${T.job}:</b> ${esc(r.job || "—")}</div>
         <div><b>${T.nat}:</b> ${esc(r.nat || "—")}</div>
-        <div><b>${T.sched}:</b> ${r.satWork ? T.schedFri : T.schedFriSat} · <b>${T.rule}:</b> ${r.daily ? T.ruleDaily : T.ruleNormal}</div>
+        <div><b>${T.sched}:</b> ${r.satWork ? T.schedFri : T.schedFriSat}</div>
       </div>
       <h2>${T.secDetails} <span class="sub">(${r.details.length})</span></h2>
       ${compactDetails(r, T)}

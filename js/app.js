@@ -124,6 +124,12 @@
         return !error && Array.isArray(data) && data.length > 0;
       },
       async update(table, key, id, fields) { check(await sb.from(table).update(fields).eq(key, id)); },
+      // تعديل سطر واحد مع التأكد أنه حُفظ فعلًا (قاعدة البيانات تتجاهل التعديل بصمت إذا لم تكن هناك صلاحية)
+      async updateOne(table, key, id, fields) {
+        const rows = check(await sb.from(table).update(fields).eq(key, id).select());
+        if (!rows || !rows.length) throw new Error("لم يُحفظ التعديل — ليست لديك صلاحية تعديل هذه البيانات في قاعدة البيانات");
+        return rows[0];
+      },
       async remove(table, key, ids) {
         for (let i = 0; i < ids.length; i += 200) check(await sb.from(table).delete().in(key, ids.slice(i, i + 200)));
       },
@@ -201,6 +207,7 @@
       try { state.settings = DB.getSettings ? await DB.getSettings() : {}; } catch (_) { state.settings = {}; }
       $("#nav-settings").hidden = !state.isAdmin;
       $("#nav-movement").hidden = !canMovement();
+      $("#nav-employees").hidden = !canEmployees();
     } catch (e) {
       $("#conn-status").textContent = "تعذّر الاتصال: " + errMsg(e);
       $("#conn-status").className = "brand-sub bad";
@@ -241,6 +248,7 @@
     state.isAdmin = false;
     $("#nav-settings").hidden = true;
     $("#nav-movement").hidden = true;
+    $("#nav-employees").hidden = true;
     state.data = { leaves: null, absences: null };
     state.ui = {};
     showLogin();
@@ -269,9 +277,16 @@
   window.addEventListener("hashchange", route);
 
   // صفحة الدخول والخروج المتعدد: للمدير، وللمستخدمين الذين يحددهم المدير في الإعدادات
-  function movementUsers() {
-    try { const v = JSON.parse(state.settings.movement_users || "[]"); return Array.isArray(v) ? v.map((x) => String(x).toLowerCase()) : []; }
+  // قائمة المستخدمين المسموح لهم بصفحة معيّنة (تُحفظ في الإعدادات كقائمة أسماء)
+  function usersOf(key) {
+    try { const v = JSON.parse(state.settings[key] || "[]"); return Array.isArray(v) ? v.map((x) => String(x).toLowerCase()) : []; }
     catch (_) { return []; }
+  }
+  function movementUsers() { return usersOf("movement_users"); }
+  function employeesUsers() { return usersOf("employees_users"); }
+  // صفحة بيانات الموظفين: للمدير، وللمستخدمين الذين يحددهم المدير
+  function canEmployees() {
+    return !!state.user && (state.isAdmin || employeesUsers().includes(String(state.user.email || "").toLowerCase()));
   }
   function canMovement() {
     return !!state.user && (state.isAdmin || movementUsers().includes(String(state.user.email || "").toLowerCase()));
@@ -865,7 +880,7 @@
   window.APP = {
     state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS,
     async reloadEmployees() { await loadEmployees(); showConnStatus(); },
-    employeeCombo, hasPendingChanges, userName, movementUsers, canMovement,
+    employeeCombo, hasPendingChanges, userName, movementUsers, canMovement, employeesUsers, canEmployees, usersOf, openModal, closeModal,
     // إعدادات الدوام (من قاعدة البيانات، وإلا القيم الافتراضية في rules.js)
     settings() {
       const R = window.ATT_RULES || {};

@@ -21,7 +21,9 @@
   --soft: #f8fafc;
   --thead: #f1f5fb;
   --line-soft: #eef1f6;
-  --hover: #fafcff;
+  --hover: #e8f0ff;
+  --zebra: #eef3fc;
+  --row-accent: #2563eb;
   --input: #ffffff;
   --drop: #f8fbff;
   --drop-line: #b6c6e3;
@@ -162,7 +164,10 @@ table.grid th {
   text-align: right; padding: 9px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0;
 }
 table.grid td { padding: 4px 6px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
-table.grid tr:hover td { background: var(--hover); }
+/* تمييز لوني لصفوف الجداول: صف فاتح وصف ملوّن، مع إبراز الصف تحت المؤشر */
+table.grid tbody tr:nth-child(even) td { background: var(--zebra); }
+table.grid tbody tr:hover td { background: var(--hover); }
+table.grid tbody tr:hover td:first-child { box-shadow: inset -3px 0 0 var(--row-accent); }
 table.grid td input, table.grid td select { padding: 5px 8px; border-color: transparent; background: transparent; border-radius: 8px; }
 table.grid td input:hover, table.grid td select:hover { border-color: var(--line-strong); background: var(--input); }
 table.grid td input:focus, table.grid td select:focus { background: var(--input); }
@@ -293,7 +298,9 @@ tr.row-selected td { background: var(--primary-soft) !important; }
   --soft: #0f182a;
   --thead: #18233a;
   --line-soft: #1b2740;
-  --hover: #16213a;
+  --hover: #1d2c4d;
+  --zebra: #19253e;
+  --row-accent: #4f8cff;
   --input: #0f182a;
   --drop: #0f1a30;
   --drop-line: #34507f;
@@ -465,3 +472,21 @@ td.actions > .btn { margin: 2px; }
   .mv-grid thead tr.grp { display: none; }
   .mv-grid tfoot td:empty { display: none; }
 }
+
+/* ---------- بيانات الموظفين ---------- */
+.emp-toolbar .right { flex-wrap: wrap; }
+.emp-toolbar input[type="search"] { width: 280px; max-width: 100%; }
+.emp-toolbar select { width: auto; min-width: 150px; }
+.emp-grid th[data-sort] { cursor: pointer; user-select: none; }
+.emp-grid th[data-sort]::after { content: attr(data-arrow); margin-inline-start: 4px; font-size: 10px; }
+.emp-grid th.sorted { color: var(--primary); }
+.emp-grid tbody tr { cursor: pointer; }
+.emp-grid td.locked { color: var(--text-2); }
+.em-form { display: grid; gap: 12px; }
+.em-locked { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--soft); border: 1px dashed var(--line-strong); border-radius: 12px; padding: 10px; }
+.em-locked input { background: transparent; color: var(--muted); cursor: not-allowed; }
+.em-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.em-form label { display: grid; gap: 4px; font-weight: 700; font-size: 13px; }
+.em-actions { display: flex; justify-content: flex-end; gap: 8px; }
+tr.row-flash td { background: var(--ok-soft) !important; transition: background .4s; }
+@media (max-width: 560px) { .em-locked, .em-edit { grid-template-columns: 1fr; } .emp-toolbar select { flex: 1; } }

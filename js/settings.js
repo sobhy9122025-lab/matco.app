@@ -36,12 +36,6 @@
   const findSheet = (sheets, test) => Object.entries(sheets).find(([, rows]) => rows.length && test(Object.keys(rows[0])));
 
   // ---------------- الموظفين ----------------
-  // "ساعات يومية" (المستثنى) تُحفظ daily_hours، وأي قيمة أخرى = احتساب عادي
-  function normRule(v) {
-    const s = String(v ?? "").trim().toLowerCase();
-    return ["ساعات يومية", "مستثنى", "استثناء", "daily_hours", "daily hours", "hours", "exempt"].includes(s) ? "daily_hours" : null;
-  }
-
   function normSat(v) {
     const s = String(v ?? "").trim().toLowerCase();
     if (["نعم", "يعمل", "yes", "work", "1", "true"].includes(s)) return "work";
@@ -49,11 +43,11 @@
     return null;
   }
 
-  const TEMPLATE_HEADERS = ["الرقم الوظيفي", "الاسم العربي", "الاسم الإنجليزي", "رقم الهوية / الإقامة", "القسم", "الوظيفة", "الجنسية", "طريقة الاحتساب", "دوام السبت"];
+  const TEMPLATE_HEADERS = ["الرقم الوظيفي", "الاسم العربي", "الاسم الإنجليزي", "رقم الهوية / الإقامة", "القسم", "الوظيفة", "الجنسية", "دوام السبت"];
 
   function downloadTemplate(rows, fileName) {
     const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, ...rows]);
-    ws["!cols"] = [{ wch: 14 }, { wch: 32 }, { wch: 30 }, { wch: 18 }, { wch: 24 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 12 }];
+    ws["!cols"] = [{ wch: 14 }, { wch: 32 }, { wch: 30 }, { wch: 18 }, { wch: 24 }, { wch: 28 }, { wch: 14 }, { wch: 12 }];
     const help = XLSX.utils.aoa_to_sheet([
       ["العمود", "إلزامي؟", "الوصف"],
       ["الرقم الوظيفي", "نعم", "رقم الموظف كما يظهر في ملف البصمة (Employee ID). لا يتكرر."],
@@ -63,10 +57,9 @@
       ["القسم", "يُفضَّل", "يُستخدم في فلاتر التقارير وإجماليات الأقسام. اكتبه بالصيغة نفسها لكل موظفي القسم."],
       ["الوظيفة", "لا", "المسمى الوظيفي."],
       ["الجنسية", "نعم", "مهمة للاحتساب: غير السعودي الذي يبصم يوم السبت يُعدّ السبت يوم عمل له. اكتب Saudi أو سعودي للسعودي."],
-      ["طريقة الاحتساب", "لا", "اتركها فارغة للاحتساب العادي، أو اكتب «ساعات يومية» للموظف المستثنى (يُحسب له الإضافي والصافي)."],
       ["دوام السبت", "لا", "اتركه فارغًا ليُحدَّد تلقائيًا (غير السعودي الذي يبصم السبت يُعدّ السبت يوم عمل له)، أو اكتب «نعم» إذا كان للموظف دوام سبت (حتى لو كان سعوديًا)، أو «لا» إذا كان السبت إجازة له دائمًا."],
       [],
-      ["مثال", "", "33120 | محمد أحمد علي | Mohamed Ahmed Ali | 2412345678 | | Accounting | محاسب | Saudi | (فارغ = عادي) | نعم"],
+      ["مثال", "", "33120 | محمد أحمد علي | Mohamed Ahmed Ali | 2412345678 | | Accounting | محاسب | Saudi | نعم"],
       ["ملاحظات", "", "الموظف الموجود تُحدَّث بياناته، والجديد يُضاف، ولا يُحذف أحد. لا تضف الآيبان ولا بيانات شخصية أخرى."],
     ]);
     help["!cols"] = [{ wch: 16 }, { wch: 10 }, { wch: 95 }];
@@ -95,7 +88,6 @@
         department: text(pick(r, "القسم", "Section | Department", "department")),
         job_title: text(pick(r, "الوظيفة", "Contrac Profession", "job_title")),
         nationality: text(pick(r, "الجنسية", "Nationality", "nationality")),
-        attendance_calculation: normRule(pick(r, "طريقة الاحتساب", "attendance_calculation", "Attendance Calculation")),
         saturday_rule: normSat(pick(r, "دوام السبت", "saturday_rule")),
       });
     }
@@ -207,7 +199,6 @@
           <label>القسم <input id="oe-dept" list="dept-list" placeholder="اختر من القائمة أو اكتب"></label>
           <label>الوظيفة <input id="oe-job"></label>
           <label>الجنسية * <input id="oe-nat" list="nat-list" required placeholder="Saudi / Egyptian ..."></label>
-          <label>طريقة الاحتساب <select id="oe-rule"><option value="">عادي</option><option value="daily_hours">ساعات يومية (مستثنى)</option></select></label>
           <label>دوام السبت <select id="oe-sat"><option value="">تلقائي (حسب الجنسية)</option><option value="work">يعمل السبت</option><option value="off">السبت إجازة</option></select></label>
           <div class="one-emp-actions"><span id="oe-state" class="tag">جديد</span><button class="btn btn-primary" type="submit" id="oe-save">💾 حفظ الموظف</button></div>
         </form>
@@ -221,7 +212,7 @@
           <button class="btn" type="button" id="tpl-current">📥 تنزيل الموظفين الحاليين بنفس القالب</button>
         </div>
         <p class="muted">املأ القالب ثم ارفعه هنا (ويُقبل كذلك ملف الموظفين الأصلي الذي فيه عمود <b>Personnel Number</b>). تُحدَّث بيانات الموظف الموجود، ويُضاف الموظف الجديد، ولا يُحذف أي موظف.
-          تُحفظ البيانات التالية فقط: الرقم الوظيفي، والاسم العربي والإنجليزي، ورقم الهوية / الإقامة، والقسم، والوظيفة، والجنسية، وطريقة الاحتساب — <b>لا يُرفع الآيبان ولا أي بيانات شخصية أخرى</b>.</p>
+          تُحفظ البيانات التالية فقط: الرقم الوظيفي، والاسم العربي والإنجليزي، ورقم الهوية / الإقامة، والقسم، والوظيفة، والجنسية، ودوام السبت — <b>لا يُرفع الآيبان ولا أي بيانات شخصية أخرى</b>.</p>
         <div class="settings-row">
           <label class="dropzone small" id="emp-dz"><input type="file" id="emp-file" accept=".xlsx,.xls" hidden>
             <div class="dz-icon">👥</div><div class="dz-title" id="emp-dz-title">اختر ملف الموظفين</div></label>
@@ -264,14 +255,16 @@
       try {
         const users = await A.DB.rpc("admin_list_users");
         const me = (A.state.user?.email || "").toLowerCase();
-        const mvUsers = A.movementUsers();
+        const mvUsers = A.movementUsers(), empUsers = A.employeesUsers();
+        const permCell = (u, list, act, what) => u.is_admin ? '<span class="tag ok-tag">✓ متاحة (مدير)</span>'
+          : `<button class="btn btn-sm perm-btn ${list.includes(String(u.email).toLowerCase()) ? "on" : ""}" data-act="${act}" title="إظهار ${what} لهذا المستخدم أو إخفاؤه">${list.includes(String(u.email).toLowerCase()) ? "✓ متاحة — إلغاء" : "＋ منح الصلاحية"}</button>`;
         box.innerHTML = `<div class="table-wrap"><table class="grid view-grid"><thead><tr>
-            <th>اسم المستخدم</th><th>الصلاحية</th><th>🚶 الدخول والخروج</th><th>تاريخ الإنشاء</th><th>آخر دخول</th><th>الإجراءات</th></tr></thead><tbody>
+            <th>اسم المستخدم</th><th>الصلاحية</th><th>🚶 الدخول والخروج</th><th>👥 بيانات الموظفين</th><th>تاريخ الإنشاء</th><th>آخر دخول</th><th>الإجراءات</th></tr></thead><tbody>
           ${users.map((u) => { const isMe = String(u.email).toLowerCase() === me; return `<tr data-email="${esc(u.email)}">
             <td class="nm"><b>${esc(short(u.email))}</b>${isMe ? ' <span class="tag">أنت</span>' : ""}</td>
             <td><span class="tag ${u.is_admin ? "warn-tag" : ""}">${u.is_admin ? "مدير" : "مستخدم"}</span></td>
-            <td>${u.is_admin ? '<span class="tag ok-tag">✓ متاحة (مدير)</span>'
-              : `<button class="btn btn-sm perm-btn ${mvUsers.includes(String(u.email).toLowerCase()) ? "on" : ""}" data-act="mv" title="إظهار تبويب الدخول والخروج المتعدد لهذا المستخدم أو إخفاؤه">${mvUsers.includes(String(u.email).toLowerCase()) ? "✓ متاحة — إلغاء" : "＋ منح الصلاحية"}</button>`}</td>
+            <td>${permCell(u, mvUsers, "mv", "تبويب الدخول والخروج")}</td>
+            <td>${permCell(u, empUsers, "emp", "تبويب بيانات الموظفين وتعديلها")}</td>
             <td class="num">${fmtDT(u.created_at)}</td><td class="num">${fmtDT(u.last_sign_in_at)}</td>
             <td class="actions">
               <button class="btn btn-sm" data-act="pass">🔑 كلمة المرور</button>
@@ -305,13 +298,15 @@
       const btn = ev.target.closest("[data-act]"); if (!btn) return;
       const email = btn.closest("tr").dataset.email;
       try {
-        if (btn.dataset.act === "mv") {
+        if (btn.dataset.act === "mv" || btn.dataset.act === "emp") {
+          const key = btn.dataset.act === "mv" ? "movement_users" : "employees_users";
+          const what = btn.dataset.act === "mv" ? "تبويب الدخول والخروج" : "تبويب بيانات الموظفين";
           const em = String(email).toLowerCase();
-          const cur = A.movementUsers();
+          const cur = A.usersOf(key);
           const next = cur.includes(em) ? cur.filter((x) => x !== em) : [...cur, em];
-          await A.DB.saveSettings({ movement_users: JSON.stringify(next) }, A.userName());
-          A.state.settings.movement_users = JSON.stringify(next);
-          A.toast(cur.includes(em) ? `تم إخفاء تبويب الدخول والخروج عن ${short(email)}` : `✅ أصبح تبويب الدخول والخروج متاحًا لـ ${short(email)}`, "ok");
+          await A.DB.saveSettings({ [key]: JSON.stringify(next) }, A.userName());
+          A.state.settings[key] = JSON.stringify(next);
+          A.toast(cur.includes(em) ? `تم إخفاء ${what} عن ${short(email)}` : `✅ أصبح ${what} متاحًا لـ ${short(email)}`, "ok");
         } else if (btn.dataset.act === "pass") {
           const p = prompt(`كلمة المرور الجديدة للمستخدم ${short(email)} (6 أحرف على الأقل):`);
           if (p == null) return;
@@ -333,7 +328,7 @@
 
     // ---------- القالب ----------
     const empRows = () => [...A.state.employees.values()].sort((a, b) => +a.id - +b.id || a.id.localeCompare(b.id))
-      .map((e) => [e.id, e.name, e.nameEn, e.nid || "", e.dept, e.job, e.nat, e.rule === "daily_hours" ? "ساعات يومية" : "", e.sat === "work" ? "نعم" : e.sat === "off" ? "لا" : ""]);
+      .map((e) => [e.id, e.name, e.nameEn, e.nid || "", e.dept, e.job, e.nat, e.sat === "work" ? "نعم" : e.sat === "off" ? "لا" : ""]);
     $("#tpl-empty").addEventListener("click", () => downloadTemplate([], "قالب_الموظفين.xlsx"));
     $("#tpl-current").addEventListener("click", () => downloadTemplate(empRows(), `الموظفون_${new Date().toISOString().slice(0, 10)}.xlsx`));
 
@@ -351,7 +346,7 @@
       $("#oe-state").className = "tag " + (e ? "warn-tag" : "ok-tag");
       if (e) {
         $("#oe-ar").value = e.name || ""; $("#oe-en").value = e.nameEn || ""; $("#oe-nid").value = e.nid || ""; $("#oe-dept").value = e.dept || "";
-        $("#oe-job").value = e.job || ""; $("#oe-nat").value = e.nat || ""; $("#oe-rule").value = e.rule === "daily_hours" ? "daily_hours" : ""; $("#oe-sat").value = e.sat === "work" || e.sat === "off" ? e.sat : "";
+        $("#oe-job").value = e.job || ""; $("#oe-nat").value = e.nat || ""; $("#oe-sat").value = e.sat === "work" || e.sat === "off" ? e.sat : "";
       }
     };
     $("#oe-id").addEventListener("change", fill);
@@ -364,7 +359,7 @@
         employee_id: id, name_ar: $("#oe-ar").value.trim() || null, name_en: $("#oe-en").value.trim() || null,
         national_id: A.cleanId($("#oe-nid").value) || null,
         department: $("#oe-dept").value.trim() || null, job_title: $("#oe-job").value.trim() || null,
-        nationality: $("#oe-nat").value.trim() || null, attendance_calculation: $("#oe-rule").value || null,
+        nationality: $("#oe-nat").value.trim() || null,
         saturday_rule: $("#oe-sat").value || null,
       };
       const existed = A.state.employees.has(id);

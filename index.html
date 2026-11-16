@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
   <script>
     // رقم الإصدار — يزيد مع كل تحديث (2.1 ثم 2.2 …) ويجب أن يطابق version.json
-    window.APP_VERSION = "2.4";
+    window.APP_VERSION = "2.5";
     try { if (localStorage.getItem("theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch (e) {}
     document.write('<link rel="stylesheet" href="css/style.css?v=' + window.APP_VERSION + '">');
   </script>
@@ -52,6 +52,7 @@
         <a href="#absences" data-page="absences">⏰ الغياب والتأخير</a>
         <a href="#reports" data-page="reports">📑 التقارير</a>
         <a href="#movement" data-page="movement" id="nav-movement" hidden>🚶 الدخول والخروج</a>
+        <a href="#employees" data-page="employees" id="nav-employees" hidden>👥 الموظفون</a>
         <a href="#settings" data-page="settings" id="nav-settings" hidden>⚙️ الإعدادات</a>
       </nav>
       <div class="userbox">
@@ -89,6 +90,7 @@
   <script>document.write('<script src="js/attendance.js?v=' + window.APP_VERSION + '"><\/script>');</script>
   <script>document.write('<script src="js/reports.js?v=' + window.APP_VERSION + '"><\/script>');</script>
   <script>document.write('<script src="js/movement.js?v=' + window.APP_VERSION + '"><\/script>');</script>
+  <script>document.write('<script src="js/employees.js?v=' + window.APP_VERSION + '"><\/script>');</script>
   <script>document.write('<script src="js/settings.js?v=' + window.APP_VERSION + '"><\/script>');</script>
 </body>
 </html>
