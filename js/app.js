@@ -110,6 +110,17 @@
       async insert(table, rows) { return check(await sb.from(table).insert(rows).select()); },
       async upsert(table, rows, onConflict) { check(await sb.from(table).upsert(rows, { onConflict })); },
       async rpc(fn, args) { return check(await sb.rpc(fn, args || {})); },
+      // سجل النشاط (للمدير): الأحدث أولًا، مع فلاتر اختيارية
+      async activity({ from, to, user, actions, exclude, limit = 200, offset = 0 } = {}) {
+        let q = sb.from("activity_log").select("id,at,user_email,action,entity,record_id,details").order("at", { ascending: false }).order("id", { ascending: false });
+        if (from) q = q.gte("at", from);
+        if (to) q = q.lt("at", to);
+        if (user) q = q.eq("user_email", user);
+        if (actions && actions.length) q = q.in("action", actions);
+        if (exclude && exclude.length) q = q.not("action", "in", `(${exclude.join(",")})`);
+        return check(await q.range(offset, offset + limit - 1));
+      },
+      async presence() { return check(await sb.from("user_presence").select("email,last_seen,page,since").order("last_seen", { ascending: false })); },
       async getSettings() {
         const { data, error } = await sb.from("app_settings").select("key,value");
         if (error) return {};
@@ -194,7 +205,31 @@
     $("#login-user").focus();
   }
 
-  async function startApp(user) {
+  // ---------- سجل النشاط ----------
+  // يُرسل الحدث إلى قاعدة البيانات دون انتظار، ولا يعطّل البرنامج إذا لم يُشغَّل ملف 8_activity_log.sql
+  const currentPage = () => (location.hash || "#leaves").slice(1);
+  let lastLoggedPage = "";
+  function logAct(action, entity = null, details = {}) {
+    if (!state.user || !DB || !DB.rpc) return Promise.resolve();
+    return DB.rpc("log_activity", { p_action: action, p_entity: entity, p_details: details || {}, p_page: currentPage() }).catch(() => {});
+  }
+  // «متصل الآن»: نبضة كل دقيقتين ما دام البرنامج مفتوحًا أمام المستخدم
+  function touchPresence() {
+    if (state.user && DB && DB.rpc && document.visibilityState === "visible") DB.rpc("touch_presence", { p_page: currentPage() }).catch(() => {});
+  }
+  setInterval(touchPresence, 120000);
+  document.addEventListener("visibilitychange", touchPresence);
+  // كل تصدير Excel في البرنامج يُسجَّل (اسم الملف وأسماء الأوراق)
+  if (window.XLSX && XLSX.writeFile && !XLSX.__logged) {
+    const orig = XLSX.writeFile;
+    XLSX.writeFile = function (wb, name, ...rest) {
+      logAct("export", "excel", { file: name, sheets: (wb.SheetNames || []).join("، ") });
+      return orig.call(this, wb, name, ...rest);
+    };
+    XLSX.__logged = true;
+  }
+
+  async function startApp(user, fromLogin = false) {
     state.user = user;
     $("#login-view").hidden = true;
     $("#app-view").hidden = false;
@@ -208,12 +243,15 @@
       $("#nav-settings").hidden = !state.isAdmin;
       $("#nav-movement").hidden = !canMovement();
       $("#nav-employees").hidden = !canEmployees();
+      $("#nav-activity").hidden = !state.isAdmin;
     } catch (e) {
       $("#conn-status").textContent = "تعذّر الاتصال: " + errMsg(e);
       $("#conn-status").className = "brand-sub bad";
     } finally {
       loading(false);
     }
+    logAct(fromLogin ? "login" : "open");
+    lastLoggedPage = "";
     route();
   }
 
@@ -232,7 +270,7 @@
     btn.disabled = true; btn.textContent = "جاري الدخول...";
     try {
       const user = await DB.signIn(u.toLowerCase(), $("#login-pass").value);
-      await startApp(user);
+      await startApp(user, true);
     } catch (e) {
       errBox.textContent = errMsg(e);
       errBox.hidden = false;
@@ -243,12 +281,14 @@
 
   $("#logout-btn").addEventListener("click", async () => {
     if (hasPendingChanges() && !confirm("توجد تعديلات غير محفوظة. هل تريد الخروج على أي حال؟")) return;
+    await logAct("logout");
     await DB.signOut();
     state.user = null;
     state.isAdmin = false;
     $("#nav-settings").hidden = true;
     $("#nav-movement").hidden = true;
     $("#nav-employees").hidden = true;
+    $("#nav-activity").hidden = true;
     state.data = { leaves: null, absences: null };
     state.ui = {};
     showLogin();
@@ -297,8 +337,10 @@
     const page = (location.hash || "#leaves").slice(1);
     $$("#mainnav a").forEach((a) => a.classList.toggle("active", a.dataset.page === page));
     const root = $("#page");
-    if (page === "leaves" || page === "absences") return renderRecordsPage(root, page);
-    if (window.PAGES && window.PAGES[page]) return window.PAGES[page](root);
+    // تسجيل فتح الصفحة (مرة واحدة عند الانتقال إليها، وفقط إذا فُتحت فعلًا)
+    const logView = () => { if (currentPage() === page && page !== lastLoggedPage) { lastLoggedPage = page; logAct("view", "page", { page }); } };
+    if (page === "leaves" || page === "absences") { renderRecordsPage(root, page); return logView(); }
+    if (window.PAGES && window.PAGES[page]) { window.PAGES[page](root); return logView(); }
     if (page === "reports") return renderSoon(root, "📑 التقارير", "تقرير الموظف، والإجازات المرضية، وملخص الإجازات.");
     location.hash = "#leaves";
   }
@@ -880,6 +922,7 @@
   window.APP = {
     state, DB, esc, toast, loading, errMsg, cleanId, loadKind, fmtDate, toISO, daysBetween, KINDS,
     async reloadEmployees() { await loadEmployees(); showConnStatus(); },
+    log: logAct,
     employeeCombo, hasPendingChanges, userName, movementUsers, canMovement, employeesUsers, canEmployees, usersOf, openModal, closeModal,
     // إعدادات الدوام (من قاعدة البيانات، وإلا القيم الافتراضية في rules.js)
     settings() {

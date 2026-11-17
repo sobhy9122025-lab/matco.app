@@ -288,6 +288,7 @@
       try {
         await A.DB.rpc("admin_create_user", { p_email: name, p_password: pass, p_admin: $("#u-admin").checked });
         A.toast(`✅ تمت إضافة المستخدم ${short(name)}`, "ok");
+        A.log("user_create", "user", { user: short(name), admin: $("#u-admin").checked });
         $("#user-form").reset();
         loadUsers();
       } catch (e) { A.toast("تعذّرت الإضافة: " + A.errMsg(e), "bad"); }
@@ -313,13 +314,16 @@
           if (p.length < 6) return A.toast("كلمة المرور يجب ألا تقل عن 6 أحرف", "bad");
           await A.DB.rpc("admin_set_password", { p_email: email, p_password: p });
           A.toast("✅ تم تغيير كلمة المرور", "ok");
+          A.log("user_password", "user", { user: short(email) });
         } else if (btn.dataset.act === "admin") {
           await A.DB.rpc("admin_set_admin", { p_email: email, p_admin: btn.dataset.v === "1" });
           A.toast("✅ تم تحديث الصلاحية", "ok");
+          A.log("user_admin", "user", { user: short(email), admin: btn.dataset.v === "1" });
         } else if (btn.dataset.act === "del") {
           if (!confirm(`سيتم حذف المستخدم ${short(email)} نهائيًا ولن يتمكن من الدخول. هل أنت متأكد؟`)) return;
           await A.DB.rpc("admin_delete_user", { p_email: email });
           A.toast("✅ تم حذف المستخدم", "ok");
+          A.log("user_delete", "user", { user: short(email) });
         }
         loadUsers();
       } catch (e) { A.toast("تعذّرت العملية: " + A.errMsg(e), "bad"); }
@@ -413,6 +417,7 @@
         }
         await A.reloadEmployees();
         A.toast(`✅ تم رفع ${rows.length.toLocaleString("en-US")} موظف`, "ok");
+        A.log("upload", "employees_file", { employees: rows.length });
         view.emp = null;
         render(root);
       } catch (e) {
@@ -466,6 +471,7 @@
         await Promise.all([A.loadKind("leaves", true), A.loadKind("absences", true)]);
         A.resetRecordPages();
         A.toast(`✅ تم رفع ${h.leaves.length} إجازة و ${h.absences.length} غياب/تأخير`, "ok");
+        A.log("upload", "history_file", { leaves: h.leaves.length, absences: h.absences.length });
         view.hist = null;
         render(root);
       } catch (e) {

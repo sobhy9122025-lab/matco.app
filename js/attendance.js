@@ -312,7 +312,10 @@
         if (!silent || !view.results.some((x) => x.id === view.selected)) view.selected = view.results.length === 1 ? view.results[0].id : (silent ? view.selected : null);
         $("#dz-title").textContent = file.name;
         $("#att-run").disabled = false;
-        if (!silent) A.toast(`✅ تم حساب ${view.results.length} موظف`, "ok");
+        if (!silent) {
+          A.toast(`✅ تم حساب ${view.results.length} موظف`, "ok");
+          if (A.log) A.log("upload", "fingerprint", { file: file.name, employees: view.results.length, from: view.results[0]?.pFrom, to: view.results[0]?.pTo });
+        }
       } catch (e) {
         A.toast("تعذّر قراءة الملف: " + A.errMsg(e), "bad");
       } finally {
@@ -638,6 +641,7 @@
 
   // صفحة طباعة عامة (بتستخدمها كل التقارير) — مقاس A4 والتصميم موحّد
   function openPrintWindow(bodyHTML, lang, title, landscape = false) {
+    if (window.APP && window.APP.log) window.APP.log("print", "pdf", { title, pages: (bodyHTML.match(/<section class="report"/g) || []).length });
     const T = TX[lang];
     const css = `
       @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 10mm; }

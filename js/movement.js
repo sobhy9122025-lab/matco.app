@@ -167,6 +167,7 @@
         if (!view.results.some((r) => r.id === view.selected)) view.selected = view.results.length === 1 ? view.results[0].id : null;
         $("#mv-title").textContent = file.name; $("#mv-run").disabled = false;
         A.toast(`✅ تم حساب ${view.results.length} موظف`, "ok");
+        if (A.log) A.log("upload", "movement", { file: file.name, employees: view.results.length });
       } catch (e) { A.toast("تعذّر قراءة الملف: " + A.errMsg(e), "bad"); }
       finally { A.loading(false); }
       renderResults();

@@ -490,3 +490,31 @@ td.actions > .btn { margin: 2px; }
 .em-actions { display: flex; justify-content: flex-end; gap: 8px; }
 tr.row-flash td { background: var(--ok-soft) !important; transition: background .4s; }
 @media (max-width: 560px) { .em-locked, .em-edit { grid-template-columns: 1fr; } .emp-toolbar select { flex: 1; } }
+
+/* ---------- سجل النشاط ---------- */
+.tag.info-tag { background: var(--primary-soft); color: var(--primary); }
+.tag.muted-tag { background: var(--soft); color: var(--muted); }
+.presence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.presence-card { display: flex; gap: 10px; align-items: flex-start; text-align: start; background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
+.presence-card:hover { border-color: var(--row-accent); }
+.presence-card.s0 { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.presence-card.s1 { background: var(--warn-soft); }
+.presence-card .pc-dot { font-size: 14px; line-height: 1.6; }
+.presence-card .pc-text { display: grid; gap: 2px; min-width: 0; }
+.presence-card .pc-name { display: flex; align-items: center; gap: 6px; }
+.auto-toggle { display: inline-flex !important; flex-direction: row !important; white-space: nowrap; }
+.auto-toggle input { width: auto !important; display: inline-block !important; margin: 0; }
+.presence-card small { font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
+.act-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.act-filters label { display: grid; gap: 4px; font-weight: 700; font-size: 13px; }
+.act-kpis { display: flex; flex-wrap: wrap; gap: 6px; }
+.auto-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.act-grid td { vertical-align: top; }
+.act-grid tr.day-sep td { background: var(--primary-soft) !important; color: var(--primary); font-weight: 800; font-size: 12.5px; padding: 5px 10px; box-shadow: none !important; }
+.act-grid tr.act-view td { color: var(--muted); }
+.act-changes { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: 12.5px; }
+.act-changes .chg { background: var(--warn-soft); border-radius: 6px; padding: 1px 8px; }
+.link-btn { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: var(--primary); cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+.act-more { display: flex; justify-content: center; margin-top: 10px; }
+@media (max-width: 980px) { .act-grid tr.day-sep td::before { content: none; } .act-grid tr.day-sep td { justify-content: flex-start; } }
